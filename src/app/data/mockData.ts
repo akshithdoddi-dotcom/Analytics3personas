@@ -3741,3 +3741,468 @@ export const APPLICATION_MONITORING_DATA: ApplicationPanel[] = [
     ]
   }
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// QUALITY ANALYTICS — Mock Data
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type QualityZoneStatus = "safe" | "warning" | "critical";
+export type QualityAlertStatus = "open" | "acknowledged" | "resolved";
+export type PersonComplianceStatus = "compliant" | "at-risk" | "non-compliant";
+
+export interface QualityKPI {
+  label: string;
+  value: string;
+  change: string;
+  trend: "up" | "down";
+  sparkline: number[];
+  higherIsBetter: boolean;
+  unit?: string;
+}
+
+export interface ComplianceTrendPoint {
+  date: string;
+  complianceRate: number;
+  target: number;
+}
+
+export interface ViolationDefectTrendPoint {
+  date: string;
+  violations: number;
+  defects: number;
+}
+
+export interface ViolationTypeEntry {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface QualityZone {
+  id: string;
+  name: string;
+  violations: number;
+  defects: number;
+  complianceRate: number;
+  status: QualityZoneStatus;
+  camera: string;
+  lastIncident: string;
+}
+
+export interface SeverityBreakdownEntry {
+  category: string;
+  minor: number;
+  major: number;
+  critical: number;
+}
+
+export interface BatchQualityEntry {
+  batchId: string;
+  shift: string;
+  totalItems: number;
+  passed: number;
+  failed: number;
+  passRate: number;
+  timestamp: string;
+}
+
+export interface PersonComplianceEntry {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+  complianceRate: number;
+  violations: number;
+  lastViolation: string;
+  shift: string;
+  status: PersonComplianceStatus;
+}
+
+export interface QualityAlertEntry {
+  id: string;
+  alertId: string;
+  title: string;
+  description: string;
+  severity: "critical" | "high" | "medium" | "low";
+  zone: string;
+  camera: string;
+  timestamp: string;
+  status: QualityAlertStatus;
+  acknowledgedBy?: string;
+}
+
+export interface TimeToCompliancePoint {
+  bucket: string;
+  count: number;
+}
+
+// KPI Cards
+export const QUALITY_KPIS: QualityKPI[] = [
+  { label: "Compliance Rate",  value: "94.2%", change: "+1.8%", trend: "up",   sparkline: [88, 89, 91, 90, 92, 93, 94.2], higherIsBetter: true  },
+  { label: "Total Violations", value: "342",   change: "-12%",  trend: "down", sparkline: [420, 405, 390, 370, 355, 348, 342], higherIsBetter: false },
+  { label: "Defect Rate",      value: "3.8%",  change: "-0.4%", trend: "down", sparkline: [5.2, 4.8, 4.5, 4.2, 4.0, 3.9, 3.8], higherIsBetter: false },
+  { label: "High-Risk Zones",  value: "4",     change: "-2",    trend: "down", sparkline: [8, 7, 7, 6, 6, 5, 4], higherIsBetter: false },
+];
+
+// Compliance trend (weekly, last 7 weeks)
+export const COMPLIANCE_TREND_DATA: ComplianceTrendPoint[] = [
+  { date: "Feb 11", complianceRate: 87.4, target: 95 },
+  { date: "Feb 18", complianceRate: 88.9, target: 95 },
+  { date: "Feb 25", complianceRate: 89.8, target: 95 },
+  { date: "Mar 04", complianceRate: 91.2, target: 95 },
+  { date: "Mar 11", complianceRate: 92.5, target: 95 },
+  { date: "Mar 18", complianceRate: 93.4, target: 95 },
+  { date: "Mar 25", complianceRate: 94.2, target: 95 },
+];
+
+// Violation & defect trend (weekly)
+export const VIOLATION_DEFECT_TREND_DATA: ViolationDefectTrendPoint[] = [
+  { date: "Feb 11", violations: 82, defects: 28 },
+  { date: "Feb 18", violations: 74, defects: 24 },
+  { date: "Feb 25", violations: 68, defects: 22 },
+  { date: "Mar 04", violations: 59, defects: 19 },
+  { date: "Mar 11", violations: 51, defects: 17 },
+  { date: "Mar 18", violations: 44, defects: 14 },
+  { date: "Mar 25", violations: 34, defects: 11 },
+];
+
+// Violation type breakdown
+export const VIOLATION_TYPE_DISTRIBUTION: ViolationTypeEntry[] = [
+  { name: "PPE Missing", value: 38, color: "#EF4444" },
+  { name: "Zone Breach", value: 28, color: "#EA580C" },
+  { name: "Loitering",   value: 18, color: "#CA8A04" },
+  { name: "Speed Limit", value: 10, color: "#3B82F6" },
+  { name: "No Helmet",   value: 6,  color: "#64748B" },
+];
+
+// Zone heatmap (12 zones)
+export const QUALITY_ZONES: QualityZone[] = [
+  { id: "QZ01", name: "Warehouse Zone A", violations: 48, defects: 12, complianceRate: 72, status: "critical", camera: "Cam-W01",  lastIncident: "1m ago"  },
+  { id: "QZ02", name: "Factory Floor B",  violations: 35, defects: 8,  complianceRate: 78, status: "critical", camera: "Cam-F02",  lastIncident: "3m ago"  },
+  { id: "QZ03", name: "Loading Dock",     violations: 22, defects: 6,  complianceRate: 84, status: "warning",  camera: "Cam-LD01", lastIncident: "8m ago"  },
+  { id: "QZ04", name: "Corridor 3B",      violations: 18, defects: 4,  complianceRate: 87, status: "warning",  camera: "Cam-C3B",  lastIncident: "12m ago" },
+  { id: "QZ05", name: "Server Room A",    violations: 2,  defects: 1,  complianceRate: 98, status: "safe",     camera: "Cam-SR01", lastIncident: "2h ago"  },
+  { id: "QZ06", name: "Main Entrance",    violations: 5,  defects: 2,  complianceRate: 96, status: "safe",     camera: "Cam-E01",  lastIncident: "45m ago" },
+  { id: "QZ07", name: "Perimeter North",  violations: 31, defects: 9,  complianceRate: 80, status: "warning",  camera: "Cam-PN01", lastIncident: "5m ago"  },
+  { id: "QZ08", name: "Retail Floor",     violations: 8,  defects: 3,  complianceRate: 94, status: "safe",     camera: "Cam-RF01", lastIncident: "1h ago"  },
+  { id: "QZ09", name: "Parking Lot A",    violations: 14, defects: 4,  complianceRate: 91, status: "safe",     camera: "Cam-PA01", lastIncident: "22m ago" },
+  { id: "QZ10", name: "Back Alley",       violations: 42, defects: 11, complianceRate: 74, status: "critical", camera: "Cam-BA01", lastIncident: "2m ago"  },
+  { id: "QZ11", name: "Lobby Reception",  violations: 4,  defects: 1,  complianceRate: 97, status: "safe",     camera: "Cam-L02",  lastIncident: "3h ago"  },
+  { id: "QZ12", name: "Emergency Exit B", violations: 45, defects: 10, complianceRate: 75, status: "critical", camera: "Cam-EX02", lastIncident: "4m ago"  },
+];
+
+// Severity breakdown per shift (stacked bar)
+export const SEVERITY_BREAKDOWN_DATA: SeverityBreakdownEntry[] = [
+  { category: "Shift A", minor: 12, major: 8,  critical: 3 },
+  { category: "Shift B", minor: 18, major: 12, critical: 5 },
+  { category: "Shift C", minor: 8,  major: 4,  critical: 1 },
+  { category: "Weekend", minor: 22, major: 15, critical: 7 },
+];
+
+// Batch quality summary
+export const BATCH_QUALITY_DATA: BatchQualityEntry[] = [
+  { batchId: "BTC-2041", shift: "Shift A", totalItems: 240, passed: 228, failed: 12, passRate: 95.0, timestamp: "08:00–16:00" },
+  { batchId: "BTC-2042", shift: "Shift B", totalItems: 310, passed: 280, failed: 30, passRate: 90.3, timestamp: "16:00–00:00" },
+  { batchId: "BTC-2043", shift: "Shift C", totalItems: 185, passed: 180, failed: 5,  passRate: 97.3, timestamp: "00:00–08:00" },
+  { batchId: "BTC-2044", shift: "Shift A", totalItems: 268, passed: 255, failed: 13, passRate: 95.1, timestamp: "Yesterday"   },
+];
+
+// Per-person compliance table (25 rows)
+const _qaNames  = ["John Doe","Jane Smith","Mike Johnson","Sarah Williams","Robert Brown","Emily Davis","James Wilson","Linda Martinez","David Anderson","Patricia Thomas","Chris Jackson","Barbara White","Matthew Harris","Susan Lewis","Andrew Clark","Karen Robinson","Daniel Walker","Nancy Hall","Kevin Young","Betty Allen","Steven King","Dorothy Wright","Edward Scott","Sandra Green","Frank Baker"];
+const _qaRates  = [98.5,72.3,95.1,88.4,99.2,68.1,91.5,85.2,97.8,79.4,93.2,82.7,96.4,74.1,88.9,91.3,69.5,94.8,83.6,97.1,76.2,90.5,86.3,93.7,71.8];
+const _qaViols  = [2,18,5,12,1,24,8,14,3,20,7,15,4,22,11,8,21,5,16,3,19,9,13,6,23];
+const _qaTimes  = ["2h ago","5m ago","1d ago","30m ago","3d ago","2m ago","4h ago","15m ago","2d ago","8m ago","6h ago","20m ago","1d ago","3m ago","45m ago","1h ago","7m ago","3h ago","25m ago","2d ago","4m ago","8h ago","35m ago","5h ago","1m ago"];
+const _qaRoles  = ["Security Officer","Supervisor","Operator","Engineer","Manager"];
+const _qaDepts  = ["Warehouse","Factory","Logistics","IT","Operations"];
+const _qaShifts = ["Shift A","Shift B","Shift A","Shift C","Shift B"];
+
+export const PERSON_COMPLIANCE_DATA: PersonComplianceEntry[] = _qaNames.map((name, i) => {
+  const rate = _qaRates[i];
+  const status: PersonComplianceStatus = rate >= 90 ? "compliant" : rate >= 80 ? "at-risk" : "non-compliant";
+  return { id: `EMP-${1000 + i}`, name, role: _qaRoles[i % 5], department: _qaDepts[i % 5], complianceRate: rate, violations: _qaViols[i], lastViolation: _qaTimes[i], shift: _qaShifts[i % 5], status };
+});
+
+// Quality alerts & incidents feed
+export const QUALITY_ALERTS: QualityAlertEntry[] = [
+  { id: "1", alertId: "ALT-5091", title: "PPE Violation — No Helmet",       description: "Worker detected without safety helmet in high-risk zone.",   severity: "critical", zone: "Warehouse Zone A", camera: "Cam-W01",  timestamp: "17:42 PM", status: "open"                              },
+  { id: "2", alertId: "ALT-5090", title: "Zone Breach — Restricted Area",   description: "Unauthorized person entered restricted server area.",         severity: "high",     zone: "Server Room A",   camera: "Cam-SR01", timestamp: "17:38 PM", status: "open"                              },
+  { id: "3", alertId: "ALT-5089", title: "Loitering Near Emergency Exit",   description: "Person loitering near emergency exit for >15 minutes.",      severity: "high",     zone: "Emergency Exit B", camera: "Cam-EX02", timestamp: "17:35 PM", status: "acknowledged", acknowledgedBy: "J. Smith" },
+  { id: "4", alertId: "ALT-5088", title: "Defect — Camera Signal Loss",     description: "Camera signal intermittent. Data quality degraded.",          severity: "medium",   zone: "Perimeter North", camera: "Cam-PN01", timestamp: "17:28 PM", status: "open"                              },
+  { id: "5", alertId: "ALT-5087", title: "Compliance Dip Below Threshold",  description: "Back Alley zone dipped below 75% compliance target.",        severity: "medium",   zone: "Back Alley",      camera: "Cam-BA01", timestamp: "17:20 PM", status: "acknowledged", acknowledgedBy: "R. Brown" },
+  { id: "6", alertId: "ALT-5086", title: "Speed Limit Exceeded",            description: "Vehicle exceeded 10 km/h limit in pedestrian zone.",          severity: "low",      zone: "Parking Lot A",   camera: "Cam-PA01", timestamp: "17:10 PM", status: "resolved"                          },
+  { id: "7", alertId: "ALT-5085", title: "Minor Defect — Camera Occlusion", description: "Camera partially obscured. Cleaning required.",              severity: "low",      zone: "Loading Dock",    camera: "Cam-LD01", timestamp: "17:05 PM", status: "resolved"                          },
+];
+
+// Time-to-compliance histogram
+export const TIME_TO_COMPLIANCE_DATA: TimeToCompliancePoint[] = [
+  { bucket: "0-5m",   count: 45 },
+  { bucket: "5-15m",  count: 82 },
+  { bucket: "15-30m", count: 56 },
+  { bucket: "30-60m", count: 28 },
+  { bucket: ">60m",   count: 12 },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V2 QUALITY ANALYTICS — TERMINOLOGY SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type QualityAppId = "ppe" | "pcb" | "welding" | "car-damage" | "construction";
+
+export interface QualityTerminology {
+  appLabel: string;
+  complianceLabel: string;
+  violationLabel: string;
+  defectRateLabel: string;
+  zoneLabel: string;
+  batchLabel: string;
+  /** 5 violation/defect category names, generic keys v1–v5 */
+  violationTypes: [string, string, string, string, string];
+  /** Short label for the primary metric rate on gauge */
+  gaugeLabel: string;
+  /** Unit shown next to cost metric */
+  costUnit: string;
+}
+
+export const TERMINOLOGY_MAP: Record<QualityAppId, QualityTerminology> = {
+  ppe: {
+    appLabel:         "PPE Detection",
+    complianceLabel:  "Compliance Rate",
+    violationLabel:   "Violation",
+    defectRateLabel:  "Defect Rate",
+    zoneLabel:        "Zone",
+    batchLabel:       "Shift",
+    gaugeLabel:       "Defect Rate",
+    costUnit:         "$/shift",
+    violationTypes:   ["PPE Missing", "Zone Breach", "Loitering", "Speed Limit", "No Helmet"],
+  },
+  pcb: {
+    appLabel:         "PCB Defect",
+    complianceLabel:  "Pass Rate",
+    violationLabel:   "Defect",
+    defectRateLabel:  "Defect Rate",
+    zoneLabel:        "Line",
+    batchLabel:       "Batch",
+    gaugeLabel:       "Defect Rate",
+    costUnit:         "$/batch",
+    violationTypes:   ["Solder Void", "Short Circuit", "Open Circuit", "Misalignment", "Contamination"],
+  },
+  welding: {
+    appLabel:         "Welding QC",
+    complianceLabel:  "Pass Rate",
+    violationLabel:   "Rejection",
+    defectRateLabel:  "Rejection Rate",
+    zoneLabel:        "Station",
+    batchLabel:       "Run",
+    gaugeLabel:       "Rejection Rate",
+    costUnit:         "$/run",
+    violationTypes:   ["Porosity", "Undercut", "Crack", "Overlap", "Spatter"],
+  },
+  "car-damage": {
+    appLabel:         "Car Damage",
+    complianceLabel:  "Inspection Rate",
+    violationLabel:   "Damage Flag",
+    defectRateLabel:  "Damage Rate",
+    zoneLabel:        "Bay",
+    batchLabel:       "Vehicle",
+    gaugeLabel:       "Damage Rate",
+    costUnit:         "$/vehicle",
+    violationTypes:   ["Dent", "Scratch", "Paint Chip", "Glass Crack", "Panel Gap"],
+  },
+  construction: {
+    appLabel:         "Construction Safety",
+    complianceLabel:  "Safety Rate",
+    violationLabel:   "Hazard",
+    defectRateLabel:  "Hazard Rate",
+    zoneLabel:        "Site",
+    batchLabel:       "Crew",
+    gaugeLabel:       "Hazard Rate",
+    costUnit:         "$/day",
+    violationTypes:   ["No Hard Hat", "Unsafe Scaffold", "Exposed Wiring", "Missing Harness", "Blocked Exit"],
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V2 MONITORING VIEW DATA
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface LiveCompliancePoint { time: string; value: number }
+export interface LiveViolationBar    { time: string; count: number; isSpike: boolean }
+export interface CameraHealthEntry   { id: string; name: string; zone: string; status: "online" | "degraded" | "offline"; lastFrame: string; fps: number; confidence: number }
+export interface BatchTickerEntry    { id: string; status: "pass" | "fail"; passRate: number; timestamp: string }
+
+export const LIVE_COMPLIANCE_SPARKLINE: LiveCompliancePoint[] = Array.from({ length: 60 }, (_, i) => ({
+  time: `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 === 0 ? "00" : "30"}`,
+  value: Math.round((87 + (i / 59) * 7 + Math.sin(i / 4) * 1.5) * 10) / 10,
+}));
+
+export const LIVE_VIOLATION_BARS: LiveViolationBar[] = Array.from({ length: 60 }, (_, i) => {
+  const isSpike = i === 15 || i === 32 || i === 51;
+  return {
+    time: `${String(Math.floor((i * 5) / 60)).padStart(2, "0")}:${String((i * 5) % 60).padStart(2, "0")}`,
+    count: isSpike ? 8 + Math.floor(Math.random() * 5) : Math.floor(Math.random() * 4),
+    isSpike,
+  };
+});
+
+export const CAMERA_HEALTH_DATA: CameraHealthEntry[] = [
+  { id: "CAM-01", name: "Cam-WH01", zone: "Warehouse A", status: "online",   lastFrame: "0.3s ago", fps: 30, confidence: 96.2 },
+  { id: "CAM-02", name: "Cam-WH02", zone: "Warehouse B", status: "online",   lastFrame: "0.2s ago", fps: 30, confidence: 94.8 },
+  { id: "CAM-03", name: "Cam-PR01", zone: "Production",  status: "online",   lastFrame: "0.4s ago", fps: 28, confidence: 97.1 },
+  { id: "CAM-04", name: "Cam-PR02", zone: "Production",  status: "online",   lastFrame: "0.3s ago", fps: 30, confidence: 95.5 },
+  { id: "CAM-05", name: "Cam-LB01", zone: "Loading Bay", status: "online",   lastFrame: "0.5s ago", fps: 25, confidence: 93.4 },
+  { id: "CAM-06", name: "Cam-LB02", zone: "Loading Bay", status: "online",   lastFrame: "0.3s ago", fps: 29, confidence: 94.0 },
+  { id: "CAM-07", name: "Cam-OF01", zone: "Office",      status: "online",   lastFrame: "0.2s ago", fps: 30, confidence: 98.2 },
+  { id: "CAM-08", name: "Cam-EX01", zone: "Exit Gate",   status: "online",   lastFrame: "0.4s ago", fps: 27, confidence: 95.9 },
+  { id: "CAM-09", name: "Cam-LD01", zone: "Loading Dock",status: "degraded", lastFrame: "2.1s ago", fps: 18, confidence: 71.3 },
+  { id: "CAM-10", name: "Cam-PN01", zone: "Parking N",   status: "degraded", lastFrame: "3.4s ago", fps: 12, confidence: 58.6 },
+  { id: "CAM-11", name: "Cam-BA01", zone: "Back Alley",  status: "offline",  lastFrame: "12m ago",  fps: 0,  confidence: 0    },
+  { id: "CAM-12", name: "Cam-RT01", zone: "Rooftop",     status: "online",   lastFrame: "0.3s ago", fps: 30, confidence: 96.8 },
+];
+
+export const BATCH_TICKER_DATA: BatchTickerEntry[] = [
+  { id: "BATCH-001", status: "pass", passRate: 97.2, timestamp: "14:30" },
+  { id: "BATCH-002", status: "pass", passRate: 94.8, timestamp: "14:15" },
+  { id: "BATCH-003", status: "fail", passRate: 71.3, timestamp: "14:00" },
+  { id: "BATCH-004", status: "pass", passRate: 98.1, timestamp: "13:45" },
+  { id: "BATCH-005", status: "pass", passRate: 95.6, timestamp: "13:30" },
+  { id: "BATCH-006", status: "fail", passRate: 68.4, timestamp: "13:15" },
+  { id: "BATCH-007", status: "pass", passRate: 92.7, timestamp: "13:00" },
+  { id: "BATCH-008", status: "pass", passRate: 96.3, timestamp: "12:45" },
+  { id: "BATCH-009", status: "fail", passRate: 74.1, timestamp: "12:30" },
+  { id: "BATCH-010", status: "pass", passRate: 93.5, timestamp: "12:15" },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V2 MANAGER VIEW DATA
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ShiftComplianceEntry      { shift: "Morning" | "Afternoon" | "Night"; today: number; thisWeek: number }
+export interface ViolationDefectByDayEntry { date: string; violations: number; defects: number }
+export interface ViolationTypeByDayEntry   { date: string; v1: number; v2: number; v3: number; v4: number; v5: number }
+export interface SeverityTrendEntry        { date: string; minor: number; major: number; critical: number }
+export interface ZonePerformanceRow        { zone: string; camera: string; complianceRate: number; violations: number; peakHour: string; trend: "up" | "down" | "flat"; status: "safe" | "warning" | "critical" }
+export interface IncidentLogEntry          { id: string; date: string; type: string; severity: "critical" | "high" | "medium" | "low"; zone: string; status: "open" | "in-progress" | "resolved"; resolutionTime: string }
+export interface CoqByDayEntry             { date: string; cost: number }
+
+export const COMPLIANCE_BY_SHIFT_DATA: ShiftComplianceEntry[] = [
+  { shift: "Morning",   today: 95.2, thisWeek: 93.8 },
+  { shift: "Afternoon", today: 91.4, thisWeek: 90.1 },
+  { shift: "Night",     today: 88.7, thisWeek: 87.5 },
+];
+
+export const VIOLATION_DEFECT_BY_DAY_DATA: ViolationDefectByDayEntry[] = [
+  { date: "Mon", violations: 38, defects: 12 },
+  { date: "Tue", violations: 42, defects: 14 },
+  { date: "Wed", violations: 51, defects: 17 },
+  { date: "Thu", violations: 35, defects: 11 },
+  { date: "Fri", violations: 44, defects: 15 },
+  { date: "Sat", violations: 28, defects: 9  },
+  { date: "Sun", violations: 22, defects: 7  },
+];
+
+export const VIOLATION_TYPE_BY_DAY_DATA: ViolationTypeByDayEntry[] = [
+  { date: "Mon", v1: 14, v2: 10, v3: 6, v4: 5, v5: 3 },
+  { date: "Tue", v1: 16, v2: 11, v3: 7, v4: 5, v5: 3 },
+  { date: "Wed", v1: 20, v2: 13, v3: 8, v4: 6, v5: 4 },
+  { date: "Thu", v1: 13, v2:  9, v3: 5, v4: 5, v5: 3 },
+  { date: "Fri", v1: 17, v2: 11, v3: 7, v4: 6, v5: 3 },
+  { date: "Sat", v1: 10, v2:  7, v3: 5, v4: 4, v5: 2 },
+  { date: "Sun", v1:  8, v2:  6, v3: 4, v4: 3, v5: 1 },
+];
+
+export const SEVERITY_TREND_DATA: SeverityTrendEntry[] = [
+  { date: "Mon", minor: 24, major: 11, critical: 3 },
+  { date: "Tue", minor: 27, major: 12, critical: 3 },
+  { date: "Wed", minor: 33, major: 14, critical: 4 },
+  { date: "Thu", minor: 21, major: 10, critical: 4 },
+  { date: "Fri", minor: 28, major: 12, critical: 4 },
+  { date: "Sat", minor: 17, major: 8,  critical: 3 },
+  { date: "Sun", minor: 13, major: 6,  critical: 3 },
+];
+
+export const ZONE_PERFORMANCE_TABLE_DATA: ZonePerformanceRow[] = [
+  { zone: "Warehouse A",   camera: "CAM-01",  complianceRate: 96.2, violations: 8,  peakHour: "10:00",  trend: "up",   status: "safe"     },
+  { zone: "Warehouse B",   camera: "CAM-02",  complianceRate: 91.4, violations: 22, peakHour: "14:00",  trend: "down", status: "warning"  },
+  { zone: "Production",    camera: "CAM-03",  complianceRate: 97.1, violations: 5,  peakHour: "09:00",  trend: "up",   status: "safe"     },
+  { zone: "Loading Bay",   camera: "CAM-05",  complianceRate: 82.3, violations: 41, peakHour: "11:00",  trend: "down", status: "critical" },
+  { zone: "Office",        camera: "CAM-07",  complianceRate: 98.5, violations: 2,  peakHour: "13:00",  trend: "flat", status: "safe"     },
+  { zone: "Exit Gate",     camera: "CAM-08",  complianceRate: 94.8, violations: 12, peakHour: "17:00",  trend: "up",   status: "safe"     },
+  { zone: "Loading Dock",  camera: "CAM-09",  complianceRate: 76.1, violations: 57, peakHour: "08:00",  trend: "down", status: "critical" },
+  { zone: "Parking N",     camera: "CAM-10",  complianceRate: 88.9, violations: 27, peakHour: "08:30",  trend: "flat", status: "warning"  },
+  { zone: "Back Alley",    camera: "CAM-11",  complianceRate: 71.4, violations: 63, peakHour: "22:00",  trend: "down", status: "critical" },
+  { zone: "Rooftop",       camera: "CAM-12",  complianceRate: 99.1, violations: 1,  peakHour: "12:00",  trend: "up",   status: "safe"     },
+  { zone: "Reception",     camera: "CAM-04",  complianceRate: 93.7, violations: 15, peakHour: "09:30",  trend: "up",   status: "safe"     },
+  { zone: "Break Room",    camera: "CAM-06",  complianceRate: 89.2, violations: 24, peakHour: "12:30",  trend: "flat", status: "warning"  },
+];
+
+// 7 days × 24 hours = 168 cells; value = relative staff/activity intensity 0–100
+export const STAFFING_HEATMAP_QA: number[][] = Array.from({ length: 7 }, (_, day) =>
+  Array.from({ length: 24 }, (_, hour) => {
+    const isWeekend = day >= 5;
+    const isPeak = (hour >= 9 && hour <= 12) || (hour >= 13 && hour <= 16);
+    const isMid  = (hour >= 7 && hour < 9)  || (hour >= 16 && hour < 19);
+    const base   = isWeekend ? 30 : 60;
+    if (isPeak) return Math.min(100, base + 35 + Math.floor(Math.random() * 10));
+    if (isMid)  return Math.min(100, base + 15 + Math.floor(Math.random() * 10));
+    if (hour < 6 || hour >= 22) return Math.max(0, 10 + Math.floor(Math.random() * 10));
+    return Math.max(0, base - 10 + Math.floor(Math.random() * 15));
+  })
+);
+
+export const INCIDENT_LOG_DATA: IncidentLogEntry[] = [
+  { id: "INC-001", date: "2026-04-02 14:22", type: "PPE Missing",    severity: "critical", zone: "Loading Dock",  status: "open",        resolutionTime: "—"       },
+  { id: "INC-002", date: "2026-04-02 13:45", type: "Zone Breach",    severity: "high",     zone: "Warehouse B",   status: "in-progress",  resolutionTime: "—"       },
+  { id: "INC-003", date: "2026-04-02 12:30", type: "Speed Violation", severity: "medium",  zone: "Loading Bay",   status: "resolved",    resolutionTime: "18 min"  },
+  { id: "INC-004", date: "2026-04-02 11:10", type: "Loitering",      severity: "low",      zone: "Back Alley",    status: "resolved",    resolutionTime: "45 min"  },
+  { id: "INC-005", date: "2026-04-02 10:55", type: "PPE Missing",    severity: "high",     zone: "Production",    status: "resolved",    resolutionTime: "12 min"  },
+  { id: "INC-006", date: "2026-04-02 09:40", type: "Crowd Density",  severity: "critical", zone: "Loading Bay",   status: "open",        resolutionTime: "—"       },
+  { id: "INC-007", date: "2026-04-02 08:22", type: "Zone Breach",    severity: "medium",   zone: "Exit Gate",     status: "resolved",    resolutionTime: "31 min"  },
+  { id: "INC-008", date: "2026-04-01 17:15", type: "PPE Missing",    severity: "high",     zone: "Warehouse A",   status: "resolved",    resolutionTime: "22 min"  },
+  { id: "INC-009", date: "2026-04-01 16:00", type: "Speed Violation", severity: "low",     zone: "Parking N",     status: "resolved",    resolutionTime: "1h 10m"  },
+  { id: "INC-010", date: "2026-04-01 14:30", type: "Loitering",      severity: "medium",   zone: "Back Alley",    status: "in-progress", resolutionTime: "—"       },
+];
+
+export const COQ_BY_DAY_DATA: CoqByDayEntry[] = [
+  { date: "Mon", cost: 1420 },
+  { date: "Tue", cost: 1510 },
+  { date: "Wed", cost: 1560 },
+  { date: "Thu", cost: 1380 },
+  { date: "Fri", cost: 1490 },
+  { date: "Sat", cost: 1050 },
+  { date: "Sun", cost: 780  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// V2 DIRECTOR VIEW DATA
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SixMonthTrendEntry   { month: string; complianceRate: number; defectRate: number }
+export interface CoqStackedMonthEntry { month: string; rework: number; rejection: number; inspection: number }
+export interface IncidentByMonthEntry { month: string; critical: number; high: number; medium: number }
+
+export const SIX_MONTH_TREND_DATA: SixMonthTrendEntry[] = [
+  { month: "Oct", complianceRate: 84.2, defectRate: 6.1 },
+  { month: "Nov", complianceRate: 86.8, defectRate: 5.7 },
+  { month: "Dec", complianceRate: 88.3, defectRate: 5.1 },
+  { month: "Jan", complianceRate: 90.5, defectRate: 4.6 },
+  { month: "Feb", complianceRate: 92.1, defectRate: 4.1 },
+  { month: "Mar", complianceRate: 94.2, defectRate: 3.8 },
+];
+
+export const COQ_STACKED_MONTHLY: CoqStackedMonthEntry[] = [
+  { month: "Oct", rework: 18200, rejection: 11400, inspection: 7800 },
+  { month: "Nov", rework: 16900, rejection: 10200, inspection: 7400 },
+  { month: "Dec", rework: 15100, rejection:  9100, inspection: 7100 },
+  { month: "Jan", rework: 13800, rejection:  8200, inspection: 6900 },
+  { month: "Feb", rework: 12400, rejection:  7100, inspection: 6600 },
+  { month: "Mar", rework: 10900, rejection:  6200, inspection: 6400 },
+];
+
+export const INCIDENT_BY_MONTH_DATA: IncidentByMonthEntry[] = [
+  { month: "Oct", critical: 14, high: 38, medium: 61 },
+  { month: "Nov", critical: 12, high: 33, medium: 55 },
+  { month: "Dec", critical: 10, high: 29, medium: 48 },
+  { month: "Jan", critical:  8, high: 24, medium: 41 },
+  { month: "Feb", critical:  6, high: 19, medium: 35 },
+  { month: "Mar", critical:  4, high: 15, medium: 28 },
+];
