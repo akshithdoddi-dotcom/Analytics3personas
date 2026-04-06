@@ -7,8 +7,6 @@ import { IdentityDirectorView } from "./identity/IdentityDirectorView";
 import { EntityDetailPanel } from "./identity/components/panels/EntityDetailPanel";
 import { CameraFeedPanel } from "./identity/components/panels/CameraFeedPanel";
 import { CrossCameraModal } from "./identity/components/panels/CrossCameraModal";
-import { Fingerprint, ScanLine } from "lucide-react";
-import { cn } from "@/app/lib/utils";
 
 export type IdentityType = "FACE" | "PLATE";
 
@@ -181,34 +179,6 @@ export const IdentityAnalytics = ({ persona }: IdentityAnalyticsProps) => {
         timeRange={timeRange}
         onTimeRangeChange={setTimeRange}
       />
-
-      {/* ── FR / LPR tab switcher ─────────────────────────────────────── */}
-      <div className="flex items-center gap-0 rounded-md border border-neutral-200 bg-white p-1 w-fit shadow-sm">
-        <button
-          onClick={() => setIdentityType("FACE")}
-          className={cn(
-            "flex items-center gap-2 rounded px-4 py-2 text-xs font-bold transition-all",
-            identityType === "FACE"
-              ? "bg-[#00775B] text-white shadow-sm"
-              : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50"
-          )}
-        >
-          <Fingerprint className="w-3.5 h-3.5" />
-          Face Recognition
-        </button>
-        <button
-          onClick={() => setIdentityType("PLATE")}
-          className={cn(
-            "flex items-center gap-2 rounded px-4 py-2 text-xs font-bold transition-all",
-            identityType === "PLATE"
-              ? "bg-[#00775B] text-white shadow-sm"
-              : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50"
-          )}
-        >
-          <ScanLine className="w-3.5 h-3.5" />
-          License Plate
-        </button>
-      </div>
 
       {/* ── Persona views ─────────────────────────────────────────────── */}
       {persona === "monitoring" && (
