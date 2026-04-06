@@ -514,7 +514,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="p-6 space-y-6 relative w-full overflow-x-hidden">
+        <div className="p-6 space-y-6 relative w-full overflow-x-hidden rounded-tl-lg">
           <GridBackground className="fixed inset-0 z-[-1] pointer-events-none" />
           
           <div className="xl:hidden mb-4">

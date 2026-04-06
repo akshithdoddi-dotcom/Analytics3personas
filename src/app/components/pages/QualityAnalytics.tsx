@@ -3,7 +3,7 @@ import type { Persona } from "../dashboard/PersonaSwitcher";
 import {
   TERMINOLOGY_MAP,
   type QualityAppId,
-} from "@/app/data/mockData";
+} from "./quality/data/mockData";
 import { QualityHeader } from "./quality/QualityHeader";
 import { MonitoringView } from "./quality/MonitoringView";
 import { ManagerView } from "./quality/ManagerView";
@@ -25,7 +25,7 @@ export const QualityAnalytics = ({ persona }: { persona: Persona }) => {
   // (persona itself is managed by parent App.tsx, so we just use it as-is)
 
   return (
-    <div className="p-4 md:p-6">
+    <div>
       <QualityHeader
         persona={persona}
         terminology={terminology}

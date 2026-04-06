@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ShieldCheck, ChevronDown, Download, Clock, Check } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import type { Persona } from "@/app/components/dashboard/PersonaSwitcher";
-import type { QualityAppId, QualityTerminology } from "@/app/data/mockData";
+import type { QualityAppId, QualityTerminology } from "./data/mockData";
 
 const APP_OPTIONS: { id: QualityAppId; label: string }[] = [
   { id: "ppe",          label: "PPE Detection" },
