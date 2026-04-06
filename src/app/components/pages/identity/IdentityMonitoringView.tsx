@@ -18,9 +18,19 @@ interface Props {
   terminology: IdentityTerminology;
   timeRange: string;
   activeApp: IdentityAppOption;
+  onEntityClick?: (type: "matched" | "unknown" | "blacklist") => void;
+  onCameraClick?: (cameraId?: string) => void;
+  onJourneyClick?: () => void;
 }
 
-export const IdentityMonitoringView = ({ terminology, timeRange: _timeRange, activeApp: _activeApp }: Props) => (
+export const IdentityMonitoringView = ({
+  terminology,
+  timeRange: _timeRange,
+  activeApp: _activeApp,
+  onEntityClick,
+  onCameraClick,
+  onJourneyClick,
+}: Props) => (
   <div className="flex flex-col gap-3 bg-neutral-50 min-h-full">
     {/* Pinned live status bar */}
     <LiveStatusBar terminology={terminology} />
@@ -37,23 +47,23 @@ export const IdentityMonitoringView = ({ terminology, timeRange: _timeRange, act
       <ConfidenceHistPanel terminology={terminology} />
     </div>
 
-    {/* Zone activity — full width */}
-    <ZoneActivityPanel terminology={terminology} />
+    {/* Zone activity — full width (click camera cell → camera feed panel) */}
+    <ZoneActivityPanel terminology={terminology} onCameraClick={onCameraClick} />
 
     {/* Row 3: Access denied + Live event feed */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       <AccessDeniedPanel terminology={terminology} />
-      <LiveEventFeedPanel terminology={terminology} />
+      <LiveEventFeedPanel terminology={terminology} onEntityClick={onEntityClick} />
     </div>
 
     {/* Row 4: VIP ticker + Unknown tracker */}
     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
       {!terminology.isLPR && <VIPTickerPanel terminology={terminology} />}
-      <UnknownTrackerPanel terminology={terminology} />
+      <UnknownTrackerPanel terminology={terminology} onTrackerClick={() => onEntityClick?.("unknown")} />
     </div>
 
     {/* Cross-camera tracking — full width */}
-    <CrossCameraPanel terminology={terminology} />
+    <CrossCameraPanel terminology={terminology} onJourneyClick={onJourneyClick} />
 
     {/* LPR-only panels */}
     {terminology.isLPR && (

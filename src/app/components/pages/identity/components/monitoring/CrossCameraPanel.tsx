@@ -4,13 +4,16 @@ import { CROSS_CAMERA_TRACKS } from "../../data/mockData";
 import type { IdentityTerminology } from "../../data/types";
 import { cn } from "@/app/lib/utils";
 
-interface Props { terminology: IdentityTerminology }
+interface Props {
+  terminology: IdentityTerminology;
+  onJourneyClick?: () => void;
+}
 
-export const CrossCameraPanel = ({ terminology: _terminology }: Props) => (
+export const CrossCameraPanel = ({ terminology: _terminology, onJourneyClick }: Props) => (
   <Panel
     title="Cross-Camera Tracking"
     icon={Waypoints}
-    info="Individuals tracked across multiple camera zones in a single session."
+    info="Individuals tracked across multiple camera zones in a single session. Click 'Journey' to view the full floor-plan map."
   >
     <div className="flex flex-col gap-2">
       {CROSS_CAMERA_TRACKS.map((track) => (
@@ -35,9 +38,20 @@ export const CrossCameraPanel = ({ terminology: _terminology }: Props) => (
               </span>
               <span className="text-xs font-bold text-neutral-800">{track.tracker_id}</span>
             </div>
-            <span className="text-[10px] font-mono text-neutral-400">
-              {Math.floor(track.duration_sec / 60)}m {track.duration_sec % 60}s
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono text-neutral-400">
+                {Math.floor(track.duration_sec / 60)}m {track.duration_sec % 60}s
+              </span>
+              {onJourneyClick && (
+                <button
+                  onClick={onJourneyClick}
+                  className="flex items-center gap-1 h-6 px-2 rounded border border-neutral-200 bg-white text-[10px] font-semibold text-[#00775B] hover:bg-[#E5FFF9] hover:border-[#00775B]/30 transition-colors"
+                >
+                  <Waypoints className="w-3 h-3" />
+                  Journey
+                </button>
+              )}
+            </div>
           </div>
           <div className="mt-2 flex items-center gap-1 flex-wrap">
             {track.path.map((zone, i) => (

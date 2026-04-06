@@ -4,7 +4,10 @@ import { IDENTITY_ZONES } from "../../data/mockData";
 import type { IdentityTerminology } from "../../data/types";
 import { cn } from "@/app/lib/utils";
 
-interface Props { terminology: IdentityTerminology }
+interface Props {
+  terminology: IdentityTerminology;
+  onCameraClick?: (cameraId?: string) => void;
+}
 
 const STATUS_COLOR: Record<string, { bg: string; border: string; label: string }> = {
   GREEN:    { bg: "bg-emerald-50",  border: "border-emerald-200", label: "text-emerald-700" },
@@ -13,11 +16,11 @@ const STATUS_COLOR: Record<string, { bg: string; border: string; label: string }
   CRITICAL: { bg: "bg-red-50",      border: "border-red-300",     label: "text-red-700" },
 };
 
-export const ZoneActivityPanel = ({ terminology }: Props) => (
+export const ZoneActivityPanel = ({ terminology, onCameraClick }: Props) => (
   <Panel
     title="Zone Activity Map"
     icon={MapPin}
-    info={`Live ${terminology.identLabel.toLowerCase()} counts and status per access zone.`}
+    info={`Live ${terminology.identLabel.toLowerCase()} counts and status per access zone. Click any zone to see the camera feed.`}
   >
     <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
       {IDENTITY_ZONES.map((zone) => {
@@ -25,8 +28,10 @@ export const ZoneActivityPanel = ({ terminology }: Props) => (
         return (
           <div
             key={zone.zone_id}
+            onClick={() => onCameraClick?.(zone.zone_id)}
             className={cn(
               "rounded-lg p-2.5 border flex flex-col gap-1 transition-all",
+              onCameraClick ? "cursor-pointer hover:brightness-95 hover:shadow-sm" : "",
               colors.bg, colors.border,
               zone.status === "CRITICAL" && "animate-pulse"
             )}

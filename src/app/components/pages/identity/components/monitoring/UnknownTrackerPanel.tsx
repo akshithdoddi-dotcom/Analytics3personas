@@ -4,20 +4,25 @@ import { UNKNOWN_TRACKERS } from "../../data/mockData";
 import type { IdentityTerminology } from "../../data/types";
 import { cn } from "@/app/lib/utils";
 
-interface Props { terminology: IdentityTerminology }
+interface Props {
+  terminology: IdentityTerminology;
+  onTrackerClick?: () => void;
+}
 
-export const UnknownTrackerPanel = ({ terminology }: Props) => (
+export const UnknownTrackerPanel = ({ terminology, onTrackerClick }: Props) => (
   <Panel
     title={`${terminology.unknownLabel} Tracker`}
     icon={UserX}
-    info="Active unknown individuals being tracked across cameras. RECURRING individuals have been seen multiple times today."
+    info="Active unknown individuals being tracked across cameras. Click a tracker to view details."
   >
     <div className="flex flex-col gap-2">
       {UNKNOWN_TRACKERS.map((tracker) => (
         <div
           key={tracker.tracker_id}
+          onClick={onTrackerClick}
           className={cn(
-            "rounded-lg p-3 border",
+            "rounded-lg p-3 border transition-all",
+            onTrackerClick ? "cursor-pointer hover:brightness-95 hover:shadow-sm" : "",
             tracker.badge === "RECURRING" ? "bg-orange-50 border-orange-200" : "bg-slate-50 border-slate-200"
           )}
         >

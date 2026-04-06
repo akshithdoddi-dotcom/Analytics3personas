@@ -4,6 +4,11 @@ import { IdentityHeader } from "./identity/IdentityHeader";
 import { IdentityMonitoringView } from "./identity/IdentityMonitoringView";
 import { IdentityManagerView } from "./identity/IdentityManagerView";
 import { IdentityDirectorView } from "./identity/IdentityDirectorView";
+import { EntityDetailPanel } from "./identity/components/panels/EntityDetailPanel";
+import { CameraFeedPanel } from "./identity/components/panels/CameraFeedPanel";
+import { CrossCameraModal } from "./identity/components/panels/CrossCameraModal";
+import { Fingerprint, ScanLine } from "lucide-react";
+import { cn } from "@/app/lib/utils";
 
 export type IdentityType = "FACE" | "PLATE";
 
@@ -116,6 +121,13 @@ export const IdentityAnalytics = ({ persona }: IdentityAnalyticsProps) => {
   const [activeAppId, setActiveAppId] = useState("facial-hq");
   const [timeRange, setTimeRange] = useState(DEFAULT_TIME_RANGE[persona]);
 
+  // Panel / modal state
+  const [entityPanelOpen, setEntityPanelOpen] = useState(false);
+  const [entityType, setEntityType] = useState<"matched" | "unknown" | "blacklist">("matched");
+  const [cameraFeedOpen, setCameraFeedOpen] = useState(false);
+  const [cameraId, setCameraId] = useState<string | undefined>(undefined);
+  const [journeyOpen, setJourneyOpen] = useState(false);
+
   useEffect(() => {
     setTimeRange(DEFAULT_TIME_RANGE[persona]);
   }, [persona]);
@@ -142,8 +154,23 @@ export const IdentityAnalytics = ({ persona }: IdentityAnalyticsProps) => {
     [identityType]
   );
 
+  // Panel open helpers
+  const openEntityPanel = (type: "matched" | "unknown" | "blacklist" = "matched") => {
+    setEntityType(type);
+    setEntityPanelOpen(true);
+  };
+  const openCameraFeed = (id?: string) => {
+    setCameraId(id);
+    setCameraFeedOpen(true);
+  };
+  const openJourney = () => {
+    setEntityPanelOpen(false);
+    setJourneyOpen(true);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
+      {/* ── Header card ───────────────────────────────────────────────── */}
       <IdentityHeader
         persona={persona}
         identityType={identityType}
@@ -155,11 +182,43 @@ export const IdentityAnalytics = ({ persona }: IdentityAnalyticsProps) => {
         onTimeRangeChange={setTimeRange}
       />
 
+      {/* ── FR / LPR tab switcher ─────────────────────────────────────── */}
+      <div className="flex items-center gap-0 rounded-md border border-neutral-200 bg-white p-1 w-fit shadow-sm">
+        <button
+          onClick={() => setIdentityType("FACE")}
+          className={cn(
+            "flex items-center gap-2 rounded px-4 py-2 text-xs font-bold transition-all",
+            identityType === "FACE"
+              ? "bg-[#00775B] text-white shadow-sm"
+              : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50"
+          )}
+        >
+          <Fingerprint className="w-3.5 h-3.5" />
+          Face Recognition
+        </button>
+        <button
+          onClick={() => setIdentityType("PLATE")}
+          className={cn(
+            "flex items-center gap-2 rounded px-4 py-2 text-xs font-bold transition-all",
+            identityType === "PLATE"
+              ? "bg-[#00775B] text-white shadow-sm"
+              : "text-neutral-500 hover:text-neutral-700 hover:bg-neutral-50"
+          )}
+        >
+          <ScanLine className="w-3.5 h-3.5" />
+          License Plate
+        </button>
+      </div>
+
+      {/* ── Persona views ─────────────────────────────────────────────── */}
       {persona === "monitoring" && (
         <IdentityMonitoringView
           terminology={terminology}
           timeRange={timeRange}
           activeApp={activeApp}
+          onEntityClick={openEntityPanel}
+          onCameraClick={openCameraFeed}
+          onJourneyClick={openJourney}
         />
       )}
 
@@ -178,6 +237,29 @@ export const IdentityAnalytics = ({ persona }: IdentityAnalyticsProps) => {
           activeApp={activeApp}
         />
       )}
+
+      {/* ── Slide panels & modal ──────────────────────────────────────── */}
+      <EntityDetailPanel
+        isOpen={entityPanelOpen}
+        onClose={() => setEntityPanelOpen(false)}
+        entityType={entityType}
+        onViewJourney={openJourney}
+      />
+
+      <CameraFeedPanel
+        isOpen={cameraFeedOpen}
+        onClose={() => setCameraFeedOpen(false)}
+        cameraId={cameraId}
+        onDetectionClick={() => {
+          setCameraFeedOpen(false);
+          openEntityPanel("matched");
+        }}
+      />
+
+      <CrossCameraModal
+        isOpen={journeyOpen}
+        onClose={() => setJourneyOpen(false)}
+      />
     </div>
   );
 };

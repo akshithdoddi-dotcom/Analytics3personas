@@ -5,7 +5,10 @@ import { IDENTITY_ALERTS } from "../../data/mockData";
 import type { IdentityAlert, IdentityTerminology } from "../../data/types";
 import { cn } from "@/app/lib/utils";
 
-interface Props { terminology: IdentityTerminology }
+interface Props {
+  terminology: IdentityTerminology;
+  onEntityClick?: (type: "matched" | "unknown" | "blacklist") => void;
+}
 
 const TONE_MAP: Record<string, { bg: string; text: string; badge: string }> = {
   BLACKLIST_MATCH:    { bg: "bg-red-50",    text: "text-red-800",    badge: "bg-red-600 text-white" },
@@ -18,10 +21,24 @@ const TONE_MAP: Record<string, { bg: string; text: string; badge: string }> = {
   REPEATED_UNKNOWN:   { bg: "bg-amber-50",  text: "text-amber-800",  badge: "bg-amber-500 text-white" },
 };
 
-const EventRow = ({ alert, terminology }: { alert: IdentityAlert; terminology: IdentityTerminology }) => {
+const EventRow = ({
+  alert,
+  terminology: _terminology,
+  onEntityClick,
+}: {
+  alert: IdentityAlert;
+  terminology: IdentityTerminology;
+  onEntityClick?: (type: "matched" | "unknown" | "blacklist") => void;
+}) => {
   const [expanded, setExpanded] = useState(false);
   const tone = TONE_MAP[alert.type] ?? TONE_MAP.UNKNOWN_AT_ENTRY;
   const typeLabel = alert.type.replace(/_/g, " ");
+
+  const resolveEntityType = (): "matched" | "unknown" | "blacklist" => {
+    if (alert.type === "BLACKLIST_MATCH" || alert.type === "STOLEN_PLATE") return "blacklist";
+    if (alert.type === "UNKNOWN_AT_ENTRY" || alert.type === "UNREGISTERED_PLATE" || alert.type === "REPEATED_UNKNOWN") return "unknown";
+    return "matched";
+  };
 
   return (
     <div
@@ -57,21 +74,31 @@ const EventRow = ({ alert, terminology }: { alert: IdentityAlert; terminology: I
         </span>
       </div>
       {expanded && (
-        <p className={cn("mt-2 text-xs leading-relaxed", tone.text)}>{alert.message}</p>
+        <div className="mt-2 space-y-2">
+          <p className={cn("text-xs leading-relaxed", tone.text)}>{alert.message}</p>
+          {onEntityClick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEntityClick(resolveEntityType()); }}
+              className="flex items-center gap-1.5 h-6 px-2.5 rounded border border-neutral-200 bg-white text-[11px] font-semibold text-neutral-600 hover:border-[#00775B] hover:text-[#00775B] transition-colors"
+            >
+              View entity details →
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
 };
 
-export const LiveEventFeedPanel = ({ terminology }: Props) => (
+export const LiveEventFeedPanel = ({ terminology, onEntityClick }: Props) => (
   <Panel
     title="Live Event Feed"
     icon={Radio}
-    info="Real-time identity events from all cameras. Click an event to expand details."
+    info="Real-time identity events from all cameras. Click an event to expand, then view entity details."
   >
     <div className="flex flex-col gap-2">
       {IDENTITY_ALERTS.map((alert) => (
-        <EventRow key={alert.id} alert={alert} terminology={terminology} />
+        <EventRow key={alert.id} alert={alert} terminology={terminology} onEntityClick={onEntityClick} />
       ))}
     </div>
   </Panel>
