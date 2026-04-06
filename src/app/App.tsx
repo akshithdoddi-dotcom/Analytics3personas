@@ -237,6 +237,7 @@ export default function App() {
   const [isClientSwitcherOpen, setIsClientSwitcherOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState(CLIENTS[0]);
   const [isGlobalFilterOpen, setIsGlobalFilterOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [globalFilterType, setGlobalFilterType] = useState<"project" | "camera">("project");
   const [globalFilterQuery, setGlobalFilterQuery] = useState("");
   const [appliedProject, setAppliedProject] = useState<string | null>(null);
@@ -383,14 +384,18 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-neutral-900 relative overflow-hidden">
-      <Sidebar activePage={activePage} onPageChange={setActivePage} />
-      
-      <div className={cn("flex-1 lg:pl-56 relative z-10 w-full min-w-0 transition-all duration-300 h-full overflow-y-auto overflow-x-hidden", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
+      <Sidebar activePage={activePage} onPageChange={setActivePage} collapsed={sidebarCollapsed} />
+
+      <div className={cn("flex-1 relative z-10 w-full min-w-0 transition-all duration-300 h-full overflow-y-auto overflow-x-hidden", sidebarCollapsed ? "lg:pl-14" : "lg:pl-56", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
         <header className={cn("sticky top-0 z-30 flex h-12 items-center justify-between bg-[#0d1f1b] px-4 border-b border-white/8 text-white transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
           {/* ── Left: toggle + page title ── */}
           <div className="flex items-center gap-3">
-            <button className="p-1.5 rounded-md text-white/50 hover:text-white hover:bg-white/8 transition-colors">
-              <PanelLeft className="w-4 h-4" />
+            <button
+              onClick={() => setSidebarCollapsed((c) => !c)}
+              className="p-1.5 rounded-md text-white/50 hover:text-white hover:bg-white/8 transition-colors"
+              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <PanelLeft className={cn("w-4 h-4 transition-transform duration-300", sidebarCollapsed && "rotate-180")} />
             </button>
             <div className="w-px h-4 bg-white/10" />
             <span className="text-sm font-semibold text-white/90 tracking-tight">
