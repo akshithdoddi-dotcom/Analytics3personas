@@ -69,15 +69,16 @@ const MatriceIcon = () => (
 const NavTooltip = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="relative group/tip">
     {children}
-    <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-2 z-[60]
-                    opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 delay-100">
-      <div className="flex items-center gap-1.5 bg-neutral-900 text-white text-xs font-medium
-                      px-2.5 py-1.5 rounded-md shadow-lg whitespace-nowrap border border-white/10">
+    {/* Tooltip — rendered to the right of the icon */}
+    <div className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-3 z-[9999]
+                    opacity-0 group-hover/tip:opacity-100 transition-opacity duration-150 delay-75">
+      {/* left-pointing caret */}
+      <span className="absolute -left-1.5 top-1/2 -translate-y-1/2
+                       border-[6px] border-transparent border-r-[#1e293b]" />
+      <span className="block bg-[#1e293b] text-white text-xs font-medium
+                       px-2.5 py-1.5 rounded-md shadow-xl whitespace-nowrap border border-white/10">
         {label}
-        {/* caret */}
-        <span className="absolute right-full top-1/2 -translate-y-1/2 border-4
-                         border-transparent border-r-neutral-900" />
-      </div>
+      </span>
     </div>
   </div>
 );
@@ -174,7 +175,7 @@ export const Sidebar = ({ activePage, onPageChange, collapsed = false }: Sidebar
       </div>
 
       {/* ── Navigation ── */}
-      <nav className={cn("flex-1 py-3 space-y-0.5 overflow-y-auto custom-scrollbar", collapsed ? "px-1.5" : "px-3")}>
+      <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5 overflow-y-hidden" : "px-3 overflow-y-auto custom-scrollbar")}>
         {NAV_ITEMS.map((item) => {
           const isActive = activePage === item.id;
           const btn = (
