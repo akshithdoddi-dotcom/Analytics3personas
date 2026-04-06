@@ -137,7 +137,8 @@ export const Sidebar = ({ activePage, onPageChange, collapsed = false }: Sidebar
 
   return (
     <aside className={cn(
-      "hidden lg:flex flex-col bg-[#021d18] h-screen fixed left-0 top-0 z-40 border-r border-[#00775B]/15 transition-all duration-300 overflow-hidden",
+      "hidden lg:flex flex-col bg-[#021d18] h-screen fixed left-0 top-0 z-40 border-r border-[#00775B]/15 transition-all duration-300",
+      collapsed ? "overflow-visible" : "overflow-hidden",
       collapsed ? "w-14" : "w-56"
     )}>
 
@@ -175,7 +176,7 @@ export const Sidebar = ({ activePage, onPageChange, collapsed = false }: Sidebar
       </div>
 
       {/* ── Navigation ── */}
-      <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5 overflow-y-hidden" : "px-3 overflow-y-auto custom-scrollbar")}>
+      <nav className={cn("flex-1 py-3 space-y-0.5", collapsed ? "px-1.5 overflow-visible" : "px-3 overflow-y-auto custom-scrollbar")}>
         {NAV_ITEMS.map((item) => {
           const isActive = activePage === item.id;
           const btn = (
