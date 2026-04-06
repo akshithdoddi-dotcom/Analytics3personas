@@ -290,6 +290,11 @@
   }
 }
 
+/* Typography Utilities */
+.font-data {
+  font-family: var(--font-data);
+}
+
 /* Utilities */
 .glass-1 {
   background: var(--bg-surface);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SeverityIcon } from "@/app/components/ui/SeverityIcon";
 import { Sidebar, Page } from "@/app/components/layout/Sidebar";
 import { IncidentCard } from "@/app/components/dashboard/IncidentCard";
@@ -237,7 +237,9 @@ export default function App() {
   const [isClientSwitcherOpen, setIsClientSwitcherOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState(CLIENTS[0]);
   const [isGlobalFilterOpen, setIsGlobalFilterOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebarCollapsed') === 'true'; } catch { return false; }
+  });
   const [globalFilterType, setGlobalFilterType] = useState<"project" | "camera">("project");
   const [globalFilterQuery, setGlobalFilterQuery] = useState("");
   const [appliedProject, setAppliedProject] = useState<string | null>(null);
@@ -246,6 +248,14 @@ export default function App() {
   const [draftProject, setDraftProject] = useState<string | null>(null);
   const [draftPipeline, setDraftPipeline] = useState<string | null>(null);
   const [draftCameraGroups, setDraftCameraGroups] = useState<Set<string>>(new Set());
+
+  // Suppress layout transition on first paint to avoid flash
+  const sidebarMounted = useRef(false);
+  useEffect(() => { sidebarMounted.current = true; }, []);
+
+  useEffect(() => {
+    try { localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed)); } catch {}
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     if (isGlobalFilterOpen) {
@@ -384,9 +394,9 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-neutral-900 relative overflow-hidden">
-      <Sidebar activePage={activePage} onPageChange={setActivePage} collapsed={sidebarCollapsed} />
+      <Sidebar activePage={activePage} onPageChange={setActivePage} collapsed={sidebarCollapsed} noTransition={!sidebarMounted.current} />
 
-      <div className={cn("flex-1 relative z-10 w-full min-w-0 transition-all duration-300 h-full overflow-y-auto overflow-x-hidden", sidebarCollapsed ? "lg:pl-14" : "lg:pl-56", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
+      <div className={cn("flex-1 relative z-10 w-full min-w-0 h-full overflow-y-auto overflow-x-hidden", sidebarMounted.current && "transition-all duration-300", sidebarCollapsed ? "lg:pl-14" : "lg:pl-56", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
         <header className={cn("sticky top-0 z-30 flex h-12 items-center justify-between bg-[#0d1f1b] px-4 border-b border-white/8 text-white transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
           {/* ── Left: toggle + page title ── */}
           <div className="flex items-center gap-3">

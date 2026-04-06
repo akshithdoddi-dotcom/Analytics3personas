@@ -15,6 +15,7 @@ interface SidebarProps {
   activePage: Page;
   onPageChange: (page: Page) => void;
   collapsed?: boolean;
+  noTransition?: boolean;
 }
 
 // ─── Platform Switcher data ────────────────────────────────────────────────────
@@ -117,7 +118,7 @@ const PlatformSwitcher = ({ onClose }: { onClose: () => void }) => (
 );
 
 // ─── Sidebar ───────────────────────────────────────────────────────────────────
-export const Sidebar = ({ activePage, onPageChange, collapsed = false }: SidebarProps) => {
+export const Sidebar = ({ activePage, onPageChange, collapsed = false, noTransition = false }: SidebarProps) => {
   const [platformOpen, setPlatformOpen] = useState(false);
   const platformRef = useRef<HTMLDivElement>(null);
 
@@ -137,7 +138,8 @@ export const Sidebar = ({ activePage, onPageChange, collapsed = false }: Sidebar
 
   return (
     <aside className={cn(
-      "hidden lg:flex flex-col bg-[#021d18] h-screen fixed left-0 top-0 z-40 border-r border-[#00775B]/15 transition-all duration-300",
+      "hidden lg:flex flex-col bg-[#021d18] h-screen fixed left-0 top-0 z-40 border-r border-[#00775B]/15",
+      !noTransition && "transition-all duration-300",
       collapsed ? "overflow-visible" : "overflow-hidden",
       collapsed ? "w-14" : "w-56"
     )}>
