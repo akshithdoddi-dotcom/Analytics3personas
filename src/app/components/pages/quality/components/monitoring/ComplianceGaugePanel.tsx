@@ -36,7 +36,7 @@ export const ComplianceGaugePanel = ({ terminology }: Props) => {
             width={220}
             height={130}
           />
-          <p className="text-3xl font-black text-neutral-900 -mt-2">{rate.toFixed(1)}%</p>
+          <p className="text-3xl font-black font-data text-neutral-900 -mt-2">{rate.toFixed(1)}%</p>
           <p className="text-[10px] text-neutral-400 uppercase tracking-widest mt-1">
             {terminology.primaryMetricLabel}
           </p>

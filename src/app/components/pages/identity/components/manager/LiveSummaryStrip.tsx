@@ -18,7 +18,7 @@ export const LiveSummaryStrip = ({ terminology }: Props) => {
       {stats.map((s, i) => (
         <div key={i} className="flex flex-col gap-0.5">
           <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">{s.label}</span>
-          <span className={`text-xl font-black ${s.color}`}>{s.value}</span>
+          <span className={`text-xl font-black font-data ${s.color}`}>{s.value}</span>
         </div>
       ))}
       <div className="ml-auto">

@@ -91,7 +91,7 @@ export const ZonePerformanceTable = ({ terminology }: Props) => {
                 <td className="py-2.5 pr-3 font-semibold text-neutral-700 whitespace-nowrap">
                   {zone.zone_name}
                 </td>
-                <td className={cn("py-2.5 pr-3 font-black tabular-nums", compColor(zone.compliance_pct))}>
+                <td className={cn("py-2.5 pr-3 font-black tabular-nums font-data", compColor(zone.compliance_pct))}>
                   {zone.compliance_pct.toFixed(1)}%
                 </td>
                 <td className="py-2.5 pr-3 font-semibold text-neutral-700">{zone.violation_count}</td>

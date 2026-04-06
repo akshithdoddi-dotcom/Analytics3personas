@@ -42,13 +42,13 @@ export const SafeVsUnsafePanel = ({ terminology }: Props) => {
         {/* Large stat numbers */}
         <div className="grid grid-cols-2 gap-4 mt-2">
           <div className="flex flex-col items-center p-3 bg-emerald-50 rounded-[4px] border border-emerald-100">
-            <p className="text-3xl font-black text-emerald-600">{safeCount}</p>
+            <p className="text-3xl font-black font-data text-emerald-600">{safeCount}</p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mt-1">
               {terminology.safeLabel}
             </p>
           </div>
           <div className="flex flex-col items-center p-3 bg-red-50 rounded-[4px] border border-red-100">
-            <p className="text-3xl font-black text-red-500">{unsafeCount}</p>
+            <p className="text-3xl font-black font-data text-red-500">{unsafeCount}</p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mt-1">
               {terminology.unsafeLabel}
             </p>

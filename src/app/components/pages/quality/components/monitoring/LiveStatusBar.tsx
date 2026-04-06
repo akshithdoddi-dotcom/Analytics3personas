@@ -29,7 +29,7 @@ export const LiveStatusBar = ({ status, terminology }: Props) => {
       {/* Compliance Rate */}
       <div className="flex items-center gap-2">
         <Shield className={cn("w-4 h-4", rateColor)} />
-        <span className={cn("text-xl font-black tabular-nums", rateColor)}>
+        <span className={cn("text-xl font-black tabular-nums font-data", rateColor)}>
           {status.compliance_rate_pct.toFixed(1)}%
         </span>
         <span className="text-[10px] text-neutral-400 uppercase tracking-widest">
@@ -42,7 +42,7 @@ export const LiveStatusBar = ({ status, terminology }: Props) => {
       {/* Active violations */}
       <div className="flex items-center gap-1.5">
         <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-        <span className="font-bold text-neutral-700">
+        <span className="font-bold font-data text-neutral-700">
           {status.active_violations_last_5min}
         </span>
         <span className="text-[10px] text-neutral-400">

@@ -23,7 +23,7 @@ export const BlacklistUnknownPanel = ({ terminology }: Props) => {
             : "bg-neutral-50 border-neutral-200"
         )}>
           <ShieldAlert className={cn("w-6 h-6", status.blacklist_matches > 0 ? "text-red-600" : "text-neutral-400")} />
-          <span className={cn("text-4xl font-black", status.blacklist_matches > 0 ? "text-red-700" : "text-neutral-700")}>
+          <span className={cn("text-4xl font-black font-data", status.blacklist_matches > 0 ? "text-red-700" : "text-neutral-700")}>
             {status.blacklist_matches}
           </span>
           <span className={cn("text-[10px] font-bold uppercase tracking-widest text-center", status.blacklist_matches > 0 ? "text-red-500" : "text-neutral-400")}>
@@ -44,7 +44,7 @@ export const BlacklistUnknownPanel = ({ terminology }: Props) => {
             : "bg-neutral-50 border-neutral-200"
         )}>
           <UserX className={cn("w-6 h-6", status.unknown_count > 3 ? "text-amber-600" : "text-neutral-400")} />
-          <span className={cn("text-4xl font-black", status.unknown_count > 3 ? "text-amber-700" : "text-neutral-700")}>
+          <span className={cn("text-4xl font-black font-data", status.unknown_count > 3 ? "text-amber-700" : "text-neutral-700")}>
             {status.unknown_count}
           </span>
           <span className={cn("text-[10px] font-bold uppercase tracking-widest text-center", status.unknown_count > 3 ? "text-amber-500" : "text-neutral-400")}>

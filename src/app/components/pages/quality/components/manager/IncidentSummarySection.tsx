@@ -45,7 +45,7 @@ export const IncidentSummarySection = ({ terminology: _terminology }: Props) => 
           { label: "Avg Resolution", value: `${avgResolutionMin}m`, color: "text-emerald-600", bg: "bg-emerald-50" },
         ].map((stat) => (
           <div key={stat.label} className={cn("rounded-[4px] p-3 text-center border border-neutral-100", stat.bg)}>
-            <p className={cn("text-2xl font-black", stat.color)}>{stat.value}</p>
+            <p className={cn("text-2xl font-black font-data", stat.color)}>{stat.value}</p>
             <p className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">{stat.label}</p>
           </div>
         ))}
@@ -90,8 +90,8 @@ export const IncidentSummarySection = ({ terminology: _terminology }: Props) => 
                 key={alert.id}
                 className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors"
               >
-                <td className="py-2.5 pr-3 font-mono text-[10px] text-neutral-500">{alert.id}</td>
-                <td className="py-2.5 pr-3 text-neutral-500 whitespace-nowrap font-mono text-[10px]">
+                <td className="py-2.5 pr-3 font-data text-[10px] text-neutral-500">{alert.id}</td>
+                <td className="py-2.5 pr-3 text-neutral-500 whitespace-nowrap font-data text-[10px]">
                   {new Date(alert.timestamp).toLocaleTimeString("en-GB", {
                     hour: "2-digit",
                     minute: "2-digit",

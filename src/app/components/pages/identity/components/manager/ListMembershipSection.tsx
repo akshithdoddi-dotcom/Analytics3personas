@@ -19,7 +19,7 @@ export const ListMembershipSection = ({ terminology }: Props) => {
         info="Today's identifications by watchlist category."
       >
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-2xl font-black text-neutral-900">{total.toLocaleString()}</span>
+          <span className="text-2xl font-black font-data text-neutral-900">{total.toLocaleString()}</span>
           <span className="text-sm text-neutral-500">total {terminology.identLabel.toLowerCase()}s</span>
         </div>
         <ResponsiveContainer width="100%" height={180} minWidth={0} minHeight={0}>

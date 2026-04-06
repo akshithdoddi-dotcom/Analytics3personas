@@ -107,7 +107,7 @@ export const AlertFeedPanel = ({ terminology: _terminology }: Props) => {
                   severityRowBg[alert.severity]
                 )}
               >
-                <td className="py-2 pr-3 text-neutral-500 whitespace-nowrap font-mono text-[10px]">
+                <td className="py-2 pr-3 text-neutral-500 whitespace-nowrap font-data text-[10px]">
                   {formatTs(alert.timestamp)}
                 </td>
                 <td className="py-2 pr-3">

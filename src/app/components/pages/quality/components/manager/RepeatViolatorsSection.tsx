@@ -19,13 +19,13 @@ export const RepeatViolatorsSection = ({ terminology }: Props) => {
       {/* Headline stat */}
       <div className="flex items-center gap-4 mb-4 pb-4 border-b border-neutral-50">
         <div>
-          <p className="text-4xl font-black text-neutral-900">{REPEAT_VIOLATORS.length}</p>
+          <p className="text-4xl font-black font-data text-neutral-900">{REPEAT_VIOLATORS.length}</p>
           <p className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">
             Total {terminology.repeatOffenderLabel}s
           </p>
         </div>
         <div className="ml-6">
-          <p className="text-2xl font-black text-amber-600">{recurringCount}</p>
+          <p className="text-2xl font-black font-data text-amber-600">{recurringCount}</p>
           <p className="text-[10px] uppercase tracking-widest text-neutral-400 mt-0.5">
             Recurring (4+ days)
           </p>
@@ -66,7 +66,7 @@ export const RepeatViolatorsSection = ({ terminology }: Props) => {
                 <td className="py-2.5 pr-3 font-black text-red-500">{v.violation_count}</td>
                 <td className="py-2.5 pr-3 text-neutral-600">{v.days_seen}</td>
                 <td className="py-2.5 pr-3 text-neutral-500">{v.zones.join(", ")}</td>
-                <td className="py-2.5 pr-3 text-neutral-400 font-mono text-[10px] whitespace-nowrap">
+                <td className="py-2.5 pr-3 text-neutral-400 font-data text-[10px] whitespace-nowrap">
                   {new Date(v.last_violation_ts).toLocaleString("en-GB", {
                     month: "short",
                     day: "numeric",

@@ -56,13 +56,13 @@ export const QualityScorecard = ({ terminology: _terminology }: Props) => {
                   <td className="py-3 pr-4 font-semibold text-neutral-700 whitespace-nowrap">
                     {row.metric}
                   </td>
-                  <td className={cn("py-3 pr-4 font-black tabular-nums rounded px-2", styles.cell)}>
+                  <td className={cn("py-3 pr-4 font-black tabular-nums font-data rounded px-2", styles.cell)}>
                     {formatValue(row.this_period, row.unit)}
                   </td>
-                  <td className="py-3 pr-4 text-neutral-500 tabular-nums">
+                  <td className="py-3 pr-4 text-neutral-500 tabular-nums font-data">
                     {formatValue(row.last_period, row.unit)}
                   </td>
-                  <td className="py-3 pr-4 text-neutral-400 tabular-nums">
+                  <td className="py-3 pr-4 text-neutral-400 tabular-nums font-data">
                     {formatValue(row.target, row.unit)}
                   </td>
                   <td className="py-3">

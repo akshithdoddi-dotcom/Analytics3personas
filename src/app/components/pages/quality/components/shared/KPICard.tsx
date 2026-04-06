@@ -21,9 +21,9 @@ export const KPICard = ({ card }: KPICardProps) => {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{card.label}</p>
-          <p className="text-2xl font-black text-neutral-900 mt-1">{displayValue}</p>
+          <p className="text-2xl font-black font-data text-neutral-900 mt-1">{displayValue}</p>
         </div>
-        <div className={cn("flex items-center gap-0.5 text-xs font-semibold mt-1", deltaColor)}>
+        <div className={cn("flex items-center gap-0.5 text-xs font-semibold font-data mt-1", deltaColor)}>
           {isUp
             ? <TrendingUp className="w-3.5 h-3.5" />
             : <TrendingDown className="w-3.5 h-3.5" />}
@@ -44,7 +44,7 @@ export const KPICard = ({ card }: KPICardProps) => {
       </ResponsiveContainer>
       <p className="text-[10px] text-neutral-400">
         vs. {card.comparison.period} ·{" "}
-        <span className="font-mono text-neutral-500">{card.definition}</span>
+        <span className="font-data text-neutral-500">{card.definition}</span>
       </p>
     </div>
   );

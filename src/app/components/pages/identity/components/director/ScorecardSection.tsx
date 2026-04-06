@@ -69,13 +69,13 @@ export const ScorecardSection = ({ terminology: _terminology }: Props) => (
             {IDENTITY_SCORECARD.map((row) => (
               <tr key={row.metric} className={cn("border-b border-neutral-50 hover:bg-neutral-50 transition-colors", STATUS_ROW_BG[row.status])}>
                 <td className="py-2.5 px-2 font-medium text-neutral-800">{row.metric}</td>
-                <td className="py-2.5 px-2 text-right tabular-nums font-semibold text-neutral-900">
+                <td className="py-2.5 px-2 text-right tabular-nums font-data font-semibold text-neutral-900">
                   {row.this_period}{row.unit}
                 </td>
-                <td className="py-2.5 px-2 text-right tabular-nums text-neutral-500">
+                <td className="py-2.5 px-2 text-right tabular-nums font-data text-neutral-500">
                   {row.last_period}{row.unit}
                 </td>
-                <td className="py-2.5 px-2 text-right tabular-nums text-neutral-500">
+                <td className="py-2.5 px-2 text-right tabular-nums font-data text-neutral-500">
                   {row.target}{row.unit}
                 </td>
                 <td className={cn("py-2.5 px-2 text-center text-sm font-black", STATUS_STYLE[row.status])}>

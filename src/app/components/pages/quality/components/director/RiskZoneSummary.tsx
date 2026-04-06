@@ -49,7 +49,7 @@ export const RiskZoneSummary = ({ terminology }: Props) => {
               {/* Avg violation rate (compliance inverse) */}
               <p
                 className={cn(
-                  "text-2xl font-black tabular-nums",
+                  "text-2xl font-black tabular-nums font-data",
                   isHighRisk
                     ? "text-red-600"
                     : zone.compliance_pct >= 90

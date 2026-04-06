@@ -49,7 +49,7 @@ export const ZoneHeatmapPanel = ({ terminology }: Props) => {
                   <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
                 )}
               </div>
-              <p className={cn("text-2xl font-black tabular-nums", rateColor)}>
+              <p className={cn("text-2xl font-black tabular-nums font-data", rateColor)}>
                 {zone.compliance_pct.toFixed(1)}%
               </p>
               <p className="text-[10px] text-neutral-500">

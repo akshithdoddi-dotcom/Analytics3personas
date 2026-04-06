@@ -29,7 +29,7 @@ export const LiveSummaryStrip = ({ terminology }: Props) => {
     <div className={cn("rounded-[4px] border px-5 py-3 flex flex-wrap items-center gap-5", bgColor)}>
       <div className="flex items-center gap-2">
         <Shield className={cn("w-4 h-4", rateColor)} />
-        <span className={cn("text-xl font-black tabular-nums", rateColor)}>
+        <span className={cn("text-xl font-black tabular-nums font-data", rateColor)}>
           {status.compliance_rate_pct.toFixed(1)}%
         </span>
         <span className="text-[10px] text-neutral-500 uppercase tracking-widest">
@@ -41,7 +41,7 @@ export const LiveSummaryStrip = ({ terminology }: Props) => {
 
       <div className="flex items-center gap-1.5">
         <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-        <span className="font-bold text-neutral-700">{totalAlerts}</span>
+        <span className="font-bold font-data text-neutral-700">{totalAlerts}</span>
         <span className="text-[10px] text-neutral-500">Open Alerts</span>
         {status.open_alerts.critical > 0 && (
           <span className="text-[10px] bg-red-600 text-white rounded px-1.5 py-0.5 font-bold">
@@ -52,13 +52,13 @@ export const LiveSummaryStrip = ({ terminology }: Props) => {
 
       <div className="flex items-center gap-1.5">
         <MapPin className="w-3.5 h-3.5 text-red-500" />
-        <span className="font-bold text-neutral-700">{status.high_risk_zones_count}</span>
+        <span className="font-bold font-data text-neutral-700">{status.high_risk_zones_count}</span>
         <span className="text-[10px] text-neutral-500">{terminology.zoneRiskLabel}s</span>
       </div>
 
       <div className="flex items-center gap-1.5">
         <Users className="w-3.5 h-3.5 text-orange-500" />
-        <span className="font-bold text-neutral-700">{REPEAT_VIOLATORS.length}</span>
+        <span className="font-bold font-data text-neutral-700">{REPEAT_VIOLATORS.length}</span>
         <span className="text-[10px] text-neutral-500">{terminology.repeatOffenderLabel}s</span>
       </div>
 

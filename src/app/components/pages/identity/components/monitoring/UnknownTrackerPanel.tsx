@@ -38,7 +38,7 @@ export const UnknownTrackerPanel = ({ terminology, onTrackerClick }: Props) => (
               </span>
               <span className="text-xs font-bold text-neutral-800">{tracker.anonymized_label}</span>
             </div>
-            <span className="text-[10px] font-mono text-neutral-400 shrink-0">
+            <span className="text-[10px] font-data text-neutral-400 shrink-0">
               {tracker.appearances}× seen
             </span>
           </div>
@@ -58,7 +58,7 @@ export const UnknownTrackerPanel = ({ terminology, onTrackerClick }: Props) => (
             <span>First: {tracker.first_seen}</span>
             <span>Last: {tracker.last_seen}</span>
             <span className={cn(
-              "font-semibold",
+              "font-semibold font-data",
               tracker.confidence < 70 ? "text-red-600" :
               tracker.confidence < 80 ? "text-amber-600" : "text-emerald-600"
             )}>

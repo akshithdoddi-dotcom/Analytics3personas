@@ -54,9 +54,9 @@ const EventRow = ({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {alert.confidence && (
-            <span className="text-[10px] text-neutral-500 font-mono">{alert.confidence}%</span>
+            <span className="text-[10px] text-neutral-500 font-data">{alert.confidence}%</span>
           )}
-          <span className="text-[10px] text-neutral-400 font-mono">{alert.timestamp}</span>
+          <span className="text-[10px] text-neutral-400 font-data">{alert.timestamp}</span>
         </div>
       </div>
       <div className="flex items-center gap-2 mt-1">

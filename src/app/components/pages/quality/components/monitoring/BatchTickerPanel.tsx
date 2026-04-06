@@ -22,7 +22,7 @@ export const BatchTickerPanel = ({ terminology }: Props) => {
         {/* Running pass rate */}
         <div className="flex items-center gap-4">
           <div>
-            <p className="text-3xl font-black text-neutral-900">{passRate}%</p>
+            <p className="text-3xl font-black font-data text-neutral-900">{passRate}%</p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-0.5">
               Pass Rate (Last {BATCH_TICKER.length} Batches)
             </p>

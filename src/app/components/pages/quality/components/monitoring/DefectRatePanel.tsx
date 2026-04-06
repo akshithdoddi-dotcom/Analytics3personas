@@ -45,7 +45,7 @@ export const DefectRatePanel = ({ terminology }: Props) => {
         />
 
         <div className="flex flex-col items-center gap-1">
-          <p className={`text-3xl font-black ${statusColor}`}>{defectRate}%</p>
+          <p className={`text-3xl font-black font-data ${statusColor}`}>{defectRate}%</p>
           <p className="text-[10px] text-neutral-400 uppercase tracking-widest">
             Avg {terminology.negativeEventLabel} Rate
           </p>

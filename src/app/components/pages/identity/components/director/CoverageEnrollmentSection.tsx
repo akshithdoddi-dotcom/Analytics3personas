@@ -36,7 +36,7 @@ export const CoverageEnrollmentSection = ({ terminology }: Props) => {
       >
         <div className="flex items-center gap-4 mb-4">
           <div className="flex flex-col">
-            <span className="text-3xl font-black text-neutral-900">{coveragePct}%</span>
+            <span className="text-3xl font-black font-data text-neutral-900">{coveragePct}%</span>
             <span className="text-[10px] text-neutral-400 uppercase tracking-widest">Coverage</span>
           </div>
           <div className="flex flex-col gap-1">
@@ -77,7 +77,7 @@ export const CoverageEnrollmentSection = ({ terminology }: Props) => {
         info="Total enrolled individuals by category. Enrollment coverage impacts match accuracy."
       >
         <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-3xl font-black text-neutral-900">2,092</span>
+          <span className="text-3xl font-black font-data text-neutral-900">2,092</span>
           <span className="text-sm text-neutral-500">total enrolled</span>
         </div>
         <ResponsiveContainer width="100%" height={180} minWidth={0} minHeight={0}>

@@ -81,7 +81,7 @@ export const IncidentSummarySection = ({ terminology: _terminology }: Props) => 
                 <span>·</span>
                 <span>{alert.camera_id}</span>
                 <span>·</span>
-                <span className="font-mono">{alert.timestamp}</span>
+                <span className="font-data">{alert.timestamp}</span>
               </div>
             </div>
             <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", STATUS_STYLE[alert.status])}>

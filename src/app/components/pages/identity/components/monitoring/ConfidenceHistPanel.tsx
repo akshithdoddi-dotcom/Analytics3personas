@@ -30,8 +30,8 @@ export const ConfidenceHistPanel = ({ terminology }: Props) => (
       </BarChart>
     </ResponsiveContainer>
     <div className="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
-      <span>Low confidence (&lt;80%): {CONFIDENCE_HISTOGRAM.slice(0, 2).reduce((s, d) => s + d.value, 0)} events</span>
-      <span className="text-emerald-600 font-semibold">High (&gt;90%): {CONFIDENCE_HISTOGRAM.slice(3).reduce((s, d) => s + d.value, 0)} events</span>
+      <span>Low confidence (&lt;80%): <span className="font-data">{CONFIDENCE_HISTOGRAM.slice(0, 2).reduce((s, d) => s + d.value, 0)}</span> events</span>
+      <span className="text-emerald-600 font-semibold">High (&gt;90%): <span className="font-data">{CONFIDENCE_HISTOGRAM.slice(3).reduce((s, d) => s + d.value, 0)}</span> events</span>
     </div>
   </Panel>
 );

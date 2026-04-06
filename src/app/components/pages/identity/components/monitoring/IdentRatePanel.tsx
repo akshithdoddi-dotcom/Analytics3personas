@@ -18,7 +18,7 @@ export const IdentRatePanel = ({ terminology }: Props) => {
       info={`Live ${terminology.identLabel.toLowerCase()} events per minute, updated in real time.`}
     >
       <div className="flex items-baseline gap-2 mb-3">
-        <span className="text-3xl font-black text-neutral-900">{latest.total}</span>
+        <span className="text-3xl font-black font-data text-neutral-900">{latest.total}</span>
         <span className="text-sm text-neutral-500">/ min</span>
         <span className="ml-auto text-xs bg-emerald-100 text-emerald-700 font-bold px-2 py-0.5 rounded-full">
           {latest.matched} matched

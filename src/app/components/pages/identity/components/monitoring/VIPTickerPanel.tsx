@@ -22,8 +22,8 @@ export const VIPTickerPanel = ({ terminology: _terminology }: Props) => (
             <p className="text-[10px] text-purple-600">{entry.zone}</p>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-[10px] font-mono text-neutral-500">{entry.timestamp}</p>
-            <p className="text-[10px] text-purple-600 font-semibold">{entry.confidence}%</p>
+            <p className="text-[10px] font-data text-neutral-500">{entry.timestamp}</p>
+            <p className="text-[10px] text-purple-600 font-semibold font-data">{entry.confidence}%</p>
           </div>
         </div>
       ))}

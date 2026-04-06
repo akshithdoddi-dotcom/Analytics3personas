@@ -17,7 +17,7 @@ export const LiveStatusBar = ({ terminology }: Props) => {
       {/* ID Rate */}
       <div className="flex items-center gap-2">
         <Users className={cn("w-4 h-4", isAlert ? "text-red-500" : "text-emerald-500")} />
-        <span className={cn("text-xl font-black tabular-nums", isAlert ? "text-red-600" : "text-emerald-600")}>
+        <span className={cn("text-xl font-black tabular-nums font-data", isAlert ? "text-red-600" : "text-emerald-600")}>
           {status.identifications_last_min}
         </span>
         <span className="text-[10px] text-neutral-400 uppercase tracking-widest">

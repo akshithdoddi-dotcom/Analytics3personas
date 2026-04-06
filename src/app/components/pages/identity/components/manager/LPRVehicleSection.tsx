@@ -24,7 +24,7 @@ export const LPRVehicleSection = ({ terminology }: Props) => {
           { label: "Unauthorized", value: `${(100 - latest.authorization_rate_pct).toFixed(1)}%`, color: "text-red-600" },
         ].map((stat) => (
           <div key={stat.label} className="text-center p-3 bg-neutral-50 rounded-lg border border-neutral-100">
-            <p className={`text-xl font-black ${stat.color}`}>{stat.value}</p>
+            <p className={`text-xl font-black font-data ${stat.color}`}>{stat.value}</p>
             <p className="text-[10px] text-neutral-400 mt-0.5">{stat.label}</p>
           </div>
         ))}

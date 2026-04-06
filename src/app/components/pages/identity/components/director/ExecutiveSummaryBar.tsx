@@ -49,7 +49,7 @@ export const ExecutiveSummaryBar = ({ terminology: _terminology }: Props) => {
       {stats.map((stat) => (
         <div key={stat.label} className="bg-white rounded-[4px] border border-neutral-100 shadow-sm p-6">
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">{stat.label}</p>
-          <p className="text-3xl font-black text-neutral-900 mt-2">{stat.value}</p>
+          <p className="text-3xl font-black font-data text-neutral-900 mt-2">{stat.value}</p>
           <div className={cn("flex items-center gap-1 mt-2 text-sm font-semibold",
             stat.positive ? "text-emerald-600" : "text-red-500"
           )}>

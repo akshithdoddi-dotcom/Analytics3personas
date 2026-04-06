@@ -80,7 +80,7 @@ export const AccessRiskSection = ({ terminology: _terminology }: Props) => {
               ].map((s) => (
                 <div key={s.label}>
                   <p className="text-[9px] text-neutral-400 uppercase tracking-wider">{s.label}</p>
-                  <p className="text-sm font-bold text-neutral-800">{s.value}</p>
+                  <p className="text-sm font-bold font-data text-neutral-800">{s.value}</p>
                 </div>
               ))}
             </div>

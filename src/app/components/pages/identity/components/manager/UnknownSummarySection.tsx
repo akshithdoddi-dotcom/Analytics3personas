@@ -16,17 +16,17 @@ export const UnknownSummarySection = ({ terminology }: Props) => {
     >
       <div className="flex items-center gap-4 mb-4">
         <div className="flex flex-col gap-0.5">
-          <span className="text-3xl font-black text-neutral-900">{UNKNOWN_TRACKERS.length}</span>
+          <span className="text-3xl font-black font-data text-neutral-900">{UNKNOWN_TRACKERS.length}</span>
           <span className="text-[10px] text-neutral-400 uppercase tracking-widest">Active Trackers</span>
         </div>
         <div className="h-10 w-px bg-neutral-200" />
         <div className="flex flex-col gap-0.5">
-          <span className="text-3xl font-black text-orange-600">{recurring.length}</span>
+          <span className="text-3xl font-black font-data text-orange-600">{recurring.length}</span>
           <span className="text-[10px] text-neutral-400 uppercase tracking-widest">Recurring</span>
         </div>
         <div className="h-10 w-px bg-neutral-200" />
         <div className="flex flex-col gap-0.5">
-          <span className="text-3xl font-black text-neutral-900">
+          <span className="text-3xl font-black font-data text-neutral-900">
             {UNKNOWN_TRACKERS.filter((t) => t.cross_camera).length}
           </span>
           <span className="text-[10px] text-neutral-400 uppercase tracking-widest">Cross-Camera</span>
@@ -49,7 +49,7 @@ export const UnknownSummarySection = ({ terminology }: Props) => {
             {UNKNOWN_TRACKERS.map((tracker) => (
               <tr key={tracker.tracker_id} className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors">
                 <td className="py-2.5 px-2 font-bold text-neutral-700">{tracker.anonymized_label}</td>
-                <td className="py-2.5 px-2 tabular-nums">{tracker.appearances}</td>
+                <td className="py-2.5 px-2 tabular-nums font-data">{tracker.appearances}</td>
                 <td className="py-2.5 px-2">
                   <div className="flex flex-wrap gap-1">
                     {tracker.cameras.map((c) => (
@@ -57,8 +57,8 @@ export const UnknownSummarySection = ({ terminology }: Props) => {
                     ))}
                   </div>
                 </td>
-                <td className="py-2.5 px-2 font-mono text-neutral-500">{tracker.last_seen}</td>
-                <td className={cn("py-2.5 px-2 font-semibold tabular-nums",
+                <td className="py-2.5 px-2 font-data text-neutral-500">{tracker.last_seen}</td>
+                <td className={cn("py-2.5 px-2 font-semibold tabular-nums font-data",
                   tracker.confidence < 70 ? "text-red-600" :
                   tracker.confidence < 80 ? "text-amber-600" : "text-emerald-600"
                 )}>

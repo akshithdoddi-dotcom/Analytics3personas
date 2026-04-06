@@ -39,7 +39,7 @@ export const CrossCameraPanel = ({ terminology: _terminology, onJourneyClick }: 
               <span className="text-xs font-bold text-neutral-800">{track.tracker_id}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-neutral-400">
+              <span className="text-[10px] font-data text-neutral-400">
                 {Math.floor(track.duration_sec / 60)}m {track.duration_sec % 60}s
               </span>
               {onJourneyClick && (

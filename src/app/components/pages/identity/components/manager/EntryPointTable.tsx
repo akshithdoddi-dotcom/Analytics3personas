@@ -90,21 +90,21 @@ export const EntryPointTable = ({ terminology }: Props) => {
                     <span className="ml-1.5 text-[9px] text-orange-600 font-bold">⚠ {entry.flag}</span>
                   )}
                 </td>
-                <td className="py-2.5 px-2 tabular-nums">{entry.identifications.toLocaleString()}</td>
-                <td className={cn("py-2.5 px-2 font-semibold tabular-nums",
+                <td className="py-2.5 px-2 tabular-nums font-data">{entry.identifications.toLocaleString()}</td>
+                <td className={cn("py-2.5 px-2 font-semibold tabular-nums font-data",
                   entry.match_rate_pct >= 97 ? "text-emerald-600" :
                   entry.match_rate_pct >= 94 ? "text-amber-600" : "text-red-600"
                 )}>
                   {entry.match_rate_pct.toFixed(1)}%
                 </td>
-                <td className={cn("py-2.5 px-2 tabular-nums",
+                <td className={cn("py-2.5 px-2 tabular-nums font-data",
                   entry.unknown_rate_pct > 7 ? "text-red-600 font-semibold" :
                   entry.unknown_rate_pct > 4 ? "text-amber-600" : "text-neutral-700"
                 )}>
                   {entry.unknown_rate_pct.toFixed(1)}%
                 </td>
-                <td className="py-2.5 px-2 tabular-nums text-neutral-700">{entry.denied_count}</td>
-                <td className={cn("py-2.5 px-2 tabular-nums font-bold",
+                <td className="py-2.5 px-2 tabular-nums font-data text-neutral-700">{entry.denied_count}</td>
+                <td className={cn("py-2.5 px-2 tabular-nums font-data font-bold",
                   entry.blacklist_hits > 0 ? "text-red-600" : "text-neutral-400"
                 )}>
                   {entry.blacklist_hits}

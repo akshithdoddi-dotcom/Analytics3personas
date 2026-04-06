@@ -116,7 +116,7 @@ export const AnalyticsHeader = ({ title, icon: Icon, defaultGranularity = "1d" }
                       );
                    })}
                  </div>
-                 <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-[10px] text-neutral-400 font-mono text-center">
+                 <div className="border-t border-neutral-100 bg-neutral-50 px-3 py-2 text-[10px] text-neutral-400 font-data text-center">
                     {selectedApps.includes("All Apps") ? "Showing All Applications" : "Filtered View Active"}
                  </div>
               </div>

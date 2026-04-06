@@ -52,9 +52,9 @@ export const ConfidenceHealthSection = ({ terminology }: Props) => {
               )} />
               <span className="font-medium text-neutral-700 flex-1 truncate">{cam.name}</span>
               <span className="text-[10px] text-neutral-400">{cam.zone}</span>
-              {cam.fps > 0 && <span className="text-[10px] font-mono text-neutral-500">{cam.fps}fps</span>}
+              {cam.fps > 0 && <span className="text-[10px] font-data text-neutral-500">{cam.fps}fps</span>}
               {cam.confidence_avg > 0 && (
-                <span className={cn("text-[10px] font-semibold",
+                <span className={cn("text-[10px] font-semibold font-data",
                   cam.confidence_avg >= 90 ? "text-emerald-600" :
                   cam.confidence_avg >= 75 ? "text-amber-600" : "text-red-600"
                 )}>

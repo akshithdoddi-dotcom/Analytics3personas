@@ -19,7 +19,7 @@ export const PlateAccuracyPanel = ({ terminology }: Props) => {
     >
       <div className="flex items-baseline gap-4 mb-3">
         <div>
-          <span className="text-2xl font-black text-neutral-900">{latest.accuracy_pct}%</span>
+          <span className="text-2xl font-black font-data text-neutral-900">{latest.accuracy_pct}%</span>
           <span className="text-xs text-neutral-500 ml-1.5">Read Accuracy</span>
         </div>
         <div>

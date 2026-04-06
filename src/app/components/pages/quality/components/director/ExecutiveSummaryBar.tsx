@@ -67,7 +67,7 @@ export const ExecutiveSummaryBar = ({ terminology }: Props) => {
             <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
               {stat.label}
             </p>
-            <p className="text-3xl font-black text-neutral-900">{stat.value}</p>
+            <p className="text-3xl font-black font-data text-neutral-900">{stat.value}</p>
             <div className="flex items-center gap-2">
               <span
                 className={cn(
