@@ -164,13 +164,13 @@ const PulseHeader = ({ incidents }: { incidents: EnhancedIncident[] }) => {
           </div>
           <div className="flex items-baseline gap-2">
             <span className={cn(
-              "text-4xl font-mono font-bold tabular-nums",
+              "text-4xl font-data font-bold tabular-nums",
               criticalCount > 0 ? "text-red-500 animate-pulse" : "text-red-700"
             )}>
               {criticalCount}
             </span>
             {highCount > 0 && (
-              <span className="text-lg font-mono text-orange-500">+{highCount} high</span>
+              <span className="text-lg font-data tabular-nums text-orange-500">+{highCount} high</span>
             )}
           </div>
         </div>
@@ -182,16 +182,16 @@ const PulseHeader = ({ incidents }: { incidents: EnhancedIncident[] }) => {
               <Timer className="w-4 h-4 text-amber-400" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">MTTA</span>
             </div>
-            <span className="text-[9px] font-mono text-amber-600">Mean Time to Ack</span>
+            <span className="text-[9px] font-data text-amber-600">Mean Time to Ack</span>
           </div>
           <div className="flex items-baseline gap-2">
             <span className={cn(
-              "text-4xl font-mono font-bold tabular-nums",
+              "text-4xl font-data font-bold tabular-nums",
               avgResponseTime > 60 ? "text-amber-500" : "text-amber-400"
             )}>
               {avgResponseTime}
             </span>
-            <span className="text-sm font-mono text-amber-600">sec</span>
+            <span className="text-sm font-data text-amber-600">sec</span>
           </div>
           {avgResponseTime > 90 && (
             <div className="text-[9px] text-amber-300 mt-1 flex items-center gap-1">
@@ -208,16 +208,16 @@ const PulseHeader = ({ incidents }: { incidents: EnhancedIncident[] }) => {
               <Video className="w-4 h-4 text-blue-400" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-300">System Throughput</span>
             </div>
-            <span className="text-[9px] font-mono text-blue-600">Camera Online</span>
+            <span className="text-[9px] font-data text-blue-600">Camera Online</span>
           </div>
           <div className="flex items-baseline gap-2">
             <span className={cn(
-              "text-4xl font-mono font-bold tabular-nums",
+              "text-4xl font-data font-bold tabular-nums",
               camerasOffline > 5 ? "text-red-500" : "text-blue-400"
             )}>
               {camerasOnline}
             </span>
-            <span className="text-sm font-mono text-blue-600">/{totalCameras}</span>
+            <span className="text-sm font-data tabular-nums text-blue-600">/{totalCameras}</span>
           </div>
           {camerasOffline > 0 && (
             <div className="text-[9px] text-neutral-400 mt-1 flex items-center gap-1">

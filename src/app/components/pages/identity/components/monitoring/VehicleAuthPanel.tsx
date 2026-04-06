@@ -46,18 +46,18 @@ export const VehicleAuthPanel = ({ terminology }: Props) => {
         </ResponsiveContainer>
         <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none">
           <div className="text-center">
-            <p className="text-2xl font-black text-neutral-900">{authorized}%</p>
+            <p className="text-2xl font-black font-data tabular-nums text-neutral-900">{authorized}%</p>
             <p className="text-[10px] text-neutral-500">Auth Rate</p>
           </div>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2 mt-1">
         <div className="text-center p-2 bg-emerald-50 rounded-lg border border-emerald-100">
-          <p className="text-lg font-black text-emerald-700">{authorized}%</p>
+          <p className="text-lg font-black font-data tabular-nums text-emerald-700">{authorized}%</p>
           <p className="text-[10px] text-emerald-600">Authorized</p>
         </div>
         <div className="text-center p-2 bg-red-50 rounded-lg border border-red-100">
-          <p className="text-lg font-black text-red-700">{unauthorized.toFixed(1)}%</p>
+          <p className="text-lg font-black font-data tabular-nums text-red-700">{unauthorized.toFixed(1)}%</p>
           <p className="text-[10px] text-red-600">Unauthorized</p>
         </div>
       </div>

@@ -63,7 +63,7 @@ export const RepeatViolatorsSection = ({ terminology }: Props) => {
                 className="border-b border-neutral-50 hover:bg-neutral-50 transition-colors"
               >
                 <td className="py-2.5 pr-3 font-semibold text-neutral-700">{v.anonymized_label}</td>
-                <td className="py-2.5 pr-3 font-black text-red-500">{v.violation_count}</td>
+                <td className="py-2.5 pr-3 font-black font-data tabular-nums text-red-500">{v.violation_count}</td>
                 <td className="py-2.5 pr-3 text-neutral-600">{v.days_seen}</td>
                 <td className="py-2.5 pr-3 text-neutral-500">{v.zones.join(", ")}</td>
                 <td className="py-2.5 pr-3 text-neutral-400 font-data text-[10px] whitespace-nowrap">

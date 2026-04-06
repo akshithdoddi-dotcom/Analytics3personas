@@ -39,17 +39,17 @@ export const ZoneActivityPanel = ({ terminology, onCameraClick }: Props) => (
             <span className="text-[9px] font-bold uppercase tracking-wide text-neutral-500 leading-tight">
               {zone.zone_name}
             </span>
-            <span className={cn("text-lg font-black", colors.label)}>
+            <span className={cn("text-lg font-black font-data tabular-nums", colors.label)}>
               {zone.identifications}
             </span>
             <div className="flex items-center gap-1">
               {zone.blacklist_hits > 0 && (
-                <span className="text-[8px] bg-red-600 text-white rounded px-1 py-0.5 font-bold">
+                <span className="text-[8px] bg-red-600 text-white rounded px-1 py-0.5 font-bold font-data tabular-nums">
                   BL:{zone.blacklist_hits}
                 </span>
               )}
               {zone.unknown > 0 && (
-                <span className="text-[8px] bg-slate-400 text-white rounded px-1 py-0.5 font-bold">
+                <span className="text-[8px] bg-slate-400 text-white rounded px-1 py-0.5 font-bold font-data tabular-nums">
                   ?{zone.unknown}
                 </span>
               )}

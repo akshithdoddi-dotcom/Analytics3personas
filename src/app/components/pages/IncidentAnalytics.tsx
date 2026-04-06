@@ -156,12 +156,12 @@ export const IncidentAnalytics = ({ persona }: { persona: Persona }) => {
                   <div className="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">System Throughput</div>
                   <div className="flex items-baseline gap-1">
                     <span className={cn(
-                      "text-2xl font-mono font-bold tabular-nums",
+                      "text-2xl font-data font-bold tabular-nums",
                       camerasOffline > 5 ? "text-red-600" : "text-neutral-900"
                     )}>
                       {camerasOnline}
                     </span>
-                    <span className="text-sm font-mono text-neutral-400">/{totalCameras}</span>
+                    <span className="text-sm font-data tabular-nums text-neutral-400">/{totalCameras}</span>
                   </div>
                   {camerasOffline > 0 && (
                     <div className="text-[10px] text-neutral-500 flex items-center gap-1">

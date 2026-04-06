@@ -936,8 +936,8 @@ const AtRiskCard = ({
                   <div className="text-[10px] font-bold text-neutral-800 mt-1 truncate">{zone.zoneName}</div>
                 </div>
                 <div className="text-right shrink-0 ml-2">
-                  <div className="text-[8px] text-neutral-500 font-mono leading-none">Active</div>
-                  <div className="text-[12px] font-mono font-bold text-[#E7000B] leading-tight tabular-nums">
+                  <div className="text-[8px] text-neutral-500 font-data leading-none">Active</div>
+                  <div className="text-[12px] font-data font-bold text-[#E7000B] leading-tight tabular-nums">
                     <CountUpTimer initialSeconds={activeSeconds} />
                   </div>
                 </div>

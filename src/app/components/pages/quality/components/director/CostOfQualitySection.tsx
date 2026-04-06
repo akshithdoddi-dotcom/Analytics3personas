@@ -54,7 +54,7 @@ export const CostOfQualitySection = ({ terminology: _terminology }: Props) => {
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
             {s.label}
           </p>
-          <p className="text-3xl font-black text-neutral-900">{s.value}</p>
+          <p className="text-3xl font-black font-data tabular-nums text-neutral-900">{s.value}</p>
           <p
             className={`text-[10px] font-semibold ${
               s.positive ? "text-emerald-600" : "text-red-500"

@@ -37,7 +37,7 @@ export const TimeToCompliancePanel = ({ terminology: _terminology }: Props) => {
       <div className="flex flex-col gap-4">
         {/* Big stat */}
         <div className="flex flex-col items-center py-2">
-          <p className="text-4xl font-black text-neutral-900">{avgDisplay}</p>
+          <p className="text-4xl font-black font-data tabular-nums text-neutral-900">{avgDisplay}</p>
           <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-1">
             Avg Time to Compliance
           </p>

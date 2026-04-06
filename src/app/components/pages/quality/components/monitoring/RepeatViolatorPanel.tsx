@@ -22,7 +22,7 @@ export const RepeatViolatorPanel = ({ terminology }: Props) => {
       <div className="flex flex-col gap-4">
         <div className="flex items-end gap-4">
           <div>
-            <p className="text-5xl font-black text-neutral-900">{count}</p>
+            <p className="text-5xl font-black font-data tabular-nums text-neutral-900">{count}</p>
             <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mt-1">
               {terminology.repeatOffenderLabel}s
             </p>
@@ -51,7 +51,7 @@ export const RepeatViolatorPanel = ({ terminology }: Props) => {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-red-500">{v.violation_count}x</span>
+                <span className="text-xs font-black font-data tabular-nums text-red-500">{v.violation_count}x</span>
                 {v.badge === "RECURRING" && (
                   <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
                     RECURRING
