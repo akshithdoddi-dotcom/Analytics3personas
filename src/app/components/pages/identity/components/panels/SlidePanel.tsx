@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 
@@ -37,12 +38,12 @@ export const SlidePanel = ({
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
         className={cn(
-          "fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300",
+          "fixed inset-0 z-[998] bg-black/40 backdrop-blur-[2px] transition-opacity duration-300",
           isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -51,7 +52,7 @@ export const SlidePanel = ({
       {/* Slide Panel */}
       <div
         className={cn(
-          "fixed right-0 top-0 bottom-0 z-50 flex flex-col bg-white shadow-2xl border-l border-neutral-200",
+          "fixed right-0 top-0 bottom-0 z-[999] flex flex-col bg-white shadow-2xl border-l border-neutral-200",
           "transition-transform duration-300 ease-out",
           width, "max-w-[95vw]",
           isOpen ? "translate-x-0" : "translate-x-full"
@@ -81,6 +82,7 @@ export const SlidePanel = ({
           {children}
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/app/lib/utils";
 import {
   X, AlertTriangle, Car,
@@ -114,12 +115,12 @@ export const CrossCameraModal = ({ isOpen, onClose }: Props) => {
     .filter((n) => n.detected)
     .sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
 
-  return (
+  return createPortal(
     <>
       {/* ── Backdrop ──────────────────────────────────────────────────────── */}
       <div
         className={cn(
-          "fixed inset-0 z-50 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 flex items-center justify-center p-6",
+          "fixed inset-0 z-[999] bg-black/50 backdrop-blur-[2px] transition-opacity duration-300 flex items-center justify-center p-6",
           isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -424,6 +425,7 @@ export const CrossCameraModal = ({ isOpen, onClose }: Props) => {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
