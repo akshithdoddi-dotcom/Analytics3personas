@@ -1,14 +1,27 @@
 import { useState, useRef, useEffect } from "react";
-import { Settings, X, Plus, Trash2, Camera, MapPin, Grid3x3, Layers, Eye, Save, Copy, Upload, ChevronRight, ChevronLeft, Check, AlertCircle } from "lucide-react";
+import {
+  X, Plus, Trash2, Camera, Grid3x3, Layers, Save, Upload,
+  ChevronRight, ChevronLeft, Check, ZoomIn, ZoomOut, Move, Ruler, Pencil,
+} from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
-import { motion, AnimatePresence } from "motion/react";
 
-// Types
+// ── Types ──────────────────────────────────────────────────────────────────
+
+interface Floor {
+  id: string;
+  name: string;
+}
+
+interface Scale {
+  pxPerUnit: number;
+  unit: string;
+}
+
 interface ZoneConfig {
   id: string;
   name: string;
-  cells: Set<string>; // Set of cell coordinates like "3,4"
+  cells: Set<string>;
   color: string;
   floor: string;
 }
@@ -17,24 +30,45 @@ interface CameraViewpoint {
   id: string;
   cameraId: string;
   cameraName: string;
-  cells: Set<string>; // Cells that this camera can see
+  cells: Set<string>;
   floor: string;
   color: string;
 }
 
 interface FloorPlan {
-  floor: string;
+  floor: string; // floor ID
   imageUrl: string;
+  naturalWidth: number;
+  naturalHeight: number;
 }
 
-interface Camera {
+interface GridDims {
+  cols: number;
+  rows: number;
+  canvasW: number;
+  canvasH: number;
+}
+
+interface AlignRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface CameraDevice {
   id: string;
   name: string;
-  thumbnail?: string;
 }
 
-// Mock camera data
-const MOCK_CAMERAS: Camera[] = [
+interface ScalePoint {
+  x: number;
+  y: number;
+}
+
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const MOCK_CAMERAS: CameraDevice[] = [
   { id: "CAM-001", name: "Main Entrance" },
   { id: "CAM-002", name: "Server Room Hallway" },
   { id: "CAM-003", name: "Loading Dock Bay 1" },
@@ -47,1229 +81,1845 @@ const MOCK_CAMERAS: Camera[] = [
   { id: "CAM-010", name: "Emergency Exit B" },
 ];
 
-const FLOORS = ["L1", "L2", "L3", "B1"];
-
 const ZONE_COLORS = [
-  "#00A63E", // Green
-  "#0088CC", // Blue
-  "#E19A04", // Amber
-  "#9333EA", // Purple
-  "#EC4899", // Pink
-  "#F97316", // Orange
-  "#14B8A6", // Teal
-  "#8B5CF6", // Violet
+  "#00A63E", "#0088CC", "#E19A04", "#9333EA",
+  "#EC4899", "#F97316", "#14B8A6", "#8B5CF6",
 ];
 
 const CAMERA_VIEWPOINT_COLORS = [
-  "#FF6B6B", // Red
-  "#4ECDC4", // Teal
-  "#95E1D3", // Mint
-  "#F3A683", // Peach
-  "#6C5CE7", // Purple
-  "#A8E6CF", // Green
-  "#FFD3B6", // Orange
-  "#FFAAA5", // Pink
+  "#FF6B6B", "#4ECDC4", "#95E1D3", "#F3A683",
+  "#6C5CE7", "#A8E6CF", "#FFD3B6", "#FFAAA5",
 ];
 
-const GRID_SIZE = 10;
-const CELL_SIZE = 48;
-const CANVAS_WIDTH = 480;
-const CANVAS_HEIGHT = 480;
+const CELL_SIZE = 24;
+const HANDLE_SIZE = 14;
 
-// Helper function to check if cells are continuous
-const areCellsContinuous = (cells: Set<string>): boolean => {
-  if (cells.size === 0) return true;
-  if (cells.size === 1) return true;
+// ── Helpers ────────────────────────────────────────────────────────────────
 
-  const cellArray = Array.from(cells).map(cell => {
-    const [x, y] = cell.split(',').map(Number);
-    return { x, y };
-  });
+const getGridDims = (fp: FloorPlan | null): GridDims => {
+  if (!fp) return { cols: 40, rows: 28, canvasW: 960, canvasH: 672 };
+  const cols = Math.max(10, Math.round(fp.naturalWidth / CELL_SIZE));
+  const rows = Math.max(8, Math.round(fp.naturalHeight / CELL_SIZE));
+  return { cols, rows, canvasW: cols * CELL_SIZE, canvasH: rows * CELL_SIZE };
+};
 
-  // BFS to check if all cells are connected
-  const visited = new Set<string>();
-  const queue = [cellArray[0]];
-  visited.add(`${cellArray[0].x},${cellArray[0].y}`);
-
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    const neighbors = [
-      { x: current.x + 1, y: current.y },
-      { x: current.x - 1, y: current.y },
-      { x: current.x, y: current.y + 1 },
-      { x: current.x, y: current.y - 1 },
-    ];
-
-    for (const neighbor of neighbors) {
-      const key = `${neighbor.x},${neighbor.y}`;
-      if (cells.has(key) && !visited.has(key)) {
-        visited.add(key);
-        queue.push(neighbor);
+const getBrushCells = (
+  gx: number,
+  gy: number,
+  bs: number,
+  gd: GridDims,
+): { x: number; y: number }[] => {
+  const cells: { x: number; y: number }[] = [];
+  for (let dy = 0; dy < bs; dy++) {
+    for (let dx = 0; dx < bs; dx++) {
+      const nx = gx + dx;
+      const ny = gy + dy;
+      if (nx >= 0 && nx < gd.cols && ny >= 0 && ny < gd.rows) {
+        cells.push({ x: nx, y: ny });
       }
     }
   }
-
-  return visited.size === cells.size;
+  return cells;
 };
 
-// Helper function to calculate the outline path of a zone
-const getZoneOutlinePath = (cells: Set<string>): string => {
-  const cellArray = Array.from(cells).map(cell => {
-    const [x, y] = cell.split(',').map(Number);
-    return { x, y };
-  });
-
-  if (cellArray.length === 0) return '';
-
-  // Create a set for quick lookup
-  const cellSet = new Set(cells);
-
-  // Find all edges
+const getZoneOutlinePath = (cells: Set<string>, cellSize: number): string => {
   const edges: { x1: number; y1: number; x2: number; y2: number }[] = [];
-
-  cellArray.forEach(({ x, y }) => {
-    // Top edge
-    if (!cellSet.has(`${x},${y - 1}`)) {
-      edges.push({
-        x1: x * CELL_SIZE,
-        y1: y * CELL_SIZE,
-        x2: (x + 1) * CELL_SIZE,
-        y2: y * CELL_SIZE,
-      });
-    }
-    // Bottom edge
-    if (!cellSet.has(`${x},${y + 1}`)) {
-      edges.push({
-        x1: x * CELL_SIZE,
-        y1: (y + 1) * CELL_SIZE,
-        x2: (x + 1) * CELL_SIZE,
-        y2: (y + 1) * CELL_SIZE,
-      });
-    }
-    // Left edge
-    if (!cellSet.has(`${x - 1},${y}`)) {
-      edges.push({
-        x1: x * CELL_SIZE,
-        y1: y * CELL_SIZE,
-        x2: x * CELL_SIZE,
-        y2: (y + 1) * CELL_SIZE,
-      });
-    }
-    // Right edge
-    if (!cellSet.has(`${x + 1},${y}`)) {
-      edges.push({
-        x1: (x + 1) * CELL_SIZE,
-        y1: y * CELL_SIZE,
-        x2: (x + 1) * CELL_SIZE,
-        y2: (y + 1) * CELL_SIZE,
-      });
-    }
+  cells.forEach((cell) => {
+    const [cx, cy] = cell.split(",").map(Number);
+    const x = cx * cellSize;
+    const y = cy * cellSize;
+    const s = cellSize;
+    if (!cells.has(`${cx},${cy - 1}`)) edges.push({ x1: x, y1: y, x2: x + s, y2: y });
+    if (!cells.has(`${cx},${cy + 1}`)) edges.push({ x1: x, y1: y + s, x2: x + s, y2: y + s });
+    if (!cells.has(`${cx - 1},${cy}`)) edges.push({ x1: x, y1: y, x2: x, y2: y + s });
+    if (!cells.has(`${cx + 1},${cy}`)) edges.push({ x1: x + s, y1: y, x2: x + s, y2: y + s });
   });
+  if (edges.length === 0) return "";
 
-  // Convert edges to path
-  return edges.map(edge => `M ${edge.x1} ${edge.y1} L ${edge.x2} ${edge.y2}`).join(' ');
+  const edgeMap = new Map<string, { x: number; y: number }[]>();
+  const key = (x: number, y: number) => `${x},${y}`;
+  for (const e of edges) {
+    const k1 = key(e.x1, e.y1);
+    const k2 = key(e.x2, e.y2);
+    if (!edgeMap.has(k1)) edgeMap.set(k1, []);
+    if (!edgeMap.has(k2)) edgeMap.set(k2, []);
+    edgeMap.get(k1)!.push({ x: e.x2, y: e.y2 });
+    edgeMap.get(k2)!.push({ x: e.x1, y: e.y1 });
+  }
+
+  const paths: string[] = [];
+  const usedEdges = new Set<string>();
+  for (const e of edges) {
+    const ek = `${e.x1},${e.y1}-${e.x2},${e.y2}`;
+    if (usedEdges.has(ek)) continue;
+    const pts: { x: number; y: number }[] = [{ x: e.x1, y: e.y1 }, { x: e.x2, y: e.y2 }];
+    usedEdges.add(ek);
+    usedEdges.add(`${e.x2},${e.y2}-${e.x1},${e.y1}`);
+    let cur = { x: e.x2, y: e.y2 };
+    let prev = { x: e.x1, y: e.y1 };
+    for (let i = 0; i < edges.length; i++) {
+      const neighbors = edgeMap.get(key(cur.x, cur.y)) || [];
+      let moved = false;
+      for (const nb of neighbors) {
+        const ek2 = `${cur.x},${cur.y}-${nb.x},${nb.y}`;
+        if (!usedEdges.has(ek2) && (nb.x !== prev.x || nb.y !== prev.y)) {
+          usedEdges.add(ek2);
+          usedEdges.add(`${nb.x},${nb.y}-${cur.x},${cur.y}`);
+          pts.push(nb);
+          prev = cur;
+          cur = nb;
+          moved = true;
+          break;
+        }
+      }
+      if (!moved) break;
+    }
+    if (pts.length > 2) {
+      paths.push(`M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`);
+    }
+  }
+  return paths.join(" ");
 };
 
-// Step 1: Floor Plan Upload Component
-const FloorPlanUpload = ({
-  floor,
-  floorPlan,
-  onFloorPlanUpload,
-}: {
-  floor: string;
-  floorPlan: FloorPlan | null;
-  onFloorPlanUpload: (imageUrl: string) => void;
-}) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
+const getSVGPoint = (
+  svgEl: SVGSVGElement,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } => {
+  const ctm = svgEl.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  const inv = ctm.inverse();
+  const pt = svgEl.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const tp = pt.matrixTransform(inv);
+  return { x: tp.x, y: tp.y };
+};
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const imageUrl = event.target?.result as string;
-        onFloorPlanUpload(imageUrl);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+// ── Canvas Container ───────────────────────────────────────────────────────
+
+interface CanvasContainerProps {
+  canvasW: number;
+  canvasH: number;
+  children: React.ReactNode;
+}
+
+const CanvasContainer = ({ canvasW, canvasH, children }: CanvasContainerProps) => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+    const obs = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      const ratio = canvasW / canvasH;
+      if (width / height > ratio) {
+        setDims({ w: Math.floor(height * ratio), h: Math.floor(height) });
+      } else {
+        setDims({ w: Math.floor(width), h: Math.floor(width / ratio) });
+      }
+    });
+    obs.observe(wrapper);
+    return () => obs.disconnect();
+  }, [canvasW, canvasH]);
 
   return (
-    <div className="flex-1 flex flex-col items-center justify-center p-8">
-      <div className="max-w-2xl w-full space-y-6">
-        <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#00775B]/10 mb-4">
-            <Upload className="w-8 h-8 text-[#00775B]" />
-          </div>
-          <h3 className="text-xl font-bold text-neutral-800">Upload Floor Plan for {floor}</h3>
-          <p className="text-sm text-neutral-600">
-            Upload an image of your floor plan to use as a reference when creating zones and camera viewpoints.
-          </p>
-        </div>
-
-        {floorPlan ? (
-          <div className="space-y-4">
-            <div className="relative rounded-lg border-2 border-[#00775B] bg-neutral-50 overflow-hidden">
-              <img src={floorPlan.imageUrl} alt="Floor Plan" className="w-full h-auto" />
-              <div className="absolute top-2 right-2">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded border border-neutral-300 text-xs font-bold text-neutral-700 hover:bg-white transition-colors"
-                >
-                  Change Image
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-4 py-3 rounded border border-green-200">
-              <Check className="w-4 h-4" />
-              <span className="font-medium">Floor plan uploaded successfully</span>
-            </div>
-          </div>
-        ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-neutral-300 rounded-lg p-12 text-center cursor-pointer hover:border-[#00775B] hover:bg-[#00775B]/5 transition-colors"
-          >
-            <div className="space-y-2">
-              <div className="text-4xl text-neutral-400">📐</div>
-              <p className="text-sm font-medium text-neutral-700">Click to upload floor plan image</p>
-              <p className="text-xs text-neutral-500">PNG, JPG, or PDF up to 10MB</p>
-            </div>
-          </div>
-        )}
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,.pdf"
-          onChange={handleFileUpload}
-          className="hidden"
-        />
+    <div ref={wrapperRef} className="flex-1 min-w-0 min-h-0 flex items-center justify-center p-4">
+      <div
+        className="relative overflow-hidden bg-neutral-900 rounded border-2 border-neutral-700 flex-shrink-0"
+        style={{ width: dims.w || undefined, height: dims.h || undefined }}
+      >
+        {dims.w > 0 && children}
       </div>
     </div>
   );
 };
 
-// Step 2: Zone Drawing Canvas
-const ZoneDrawingCanvas = ({
-  zones,
-  selectedZone,
-  onZoneCreate,
-  onZoneSelect,
-  onZoneDelete,
-  onZoneUpdate,
-  floor,
+// ── Floor Plan Upload (Step 1) ─────────────────────────────────────────────
+
+interface FloorPlanUploadProps {
+  floors: Floor[];
+  onFloorsChange: (floors: Floor[]) => void;
+  floorPlans: FloorPlan[];
+  onFloorPlanUpload: (floorId: string, imageUrl: string, w: number, h: number) => void;
+  onDeleteFloorPlan: (floorId: string) => void;
+}
+
+const FloorPlanUpload = ({
+  floors,
+  onFloorsChange,
+  floorPlans,
+  onFloorPlanUpload,
+  onDeleteFloorPlan,
+}: FloorPlanUploadProps) => {
+  const fileInputRefs = useRef<{ [floorId: string]: HTMLInputElement | null }>({});
+  const [editingFloorId, setEditingFloorId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const addFloor = () => {
+    const newFloor: Floor = { id: `floor-${Date.now()}`, name: `Floor ${floors.length + 1}` };
+    onFloorsChange([...floors, newFloor]);
+  };
+
+  const deleteFloor = (id: string) => {
+    if (floors.length === 1) return;
+    onFloorsChange(floors.filter((f) => f.id !== id));
+    onDeleteFloorPlan(id);
+  };
+
+  const startEdit = (floor: Floor) => {
+    setEditingFloorId(floor.id);
+    setEditName(floor.name);
+  };
+
+  const commitEdit = () => {
+    if (!editingFloorId) return;
+    const name = editName.trim() || floors.find((f) => f.id === editingFloorId)?.name || "";
+    onFloorsChange(floors.map((f) => (f.id === editingFloorId ? { ...f, name } : f)));
+    setEditingFloorId(null);
+    setEditName("");
+  };
+
+  const handleFileChange = (floorId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const url = ev.target?.result as string;
+      const img = new Image();
+      img.onload = () => onFloorPlanUpload(floorId, url, img.naturalWidth, img.naturalHeight);
+      img.src = url;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto p-6">
+      <div className="w-full max-w-2xl mx-auto flex flex-col gap-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-bold uppercase tracking-widest text-neutral-800">Floors</div>
+            <div className="text-xs text-neutral-400 mt-0.5">Upload one floor plan per level. You can rename each floor.</div>
+          </div>
+          <button
+            onClick={addFloor}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#00775B] text-white rounded text-xs font-bold uppercase tracking-wide hover:bg-[#005f48] transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Add Floor
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-3">
+          {floors.map((floor, floorIndex) => {
+            const plan = floorPlans.find((fp) => fp.floor === floor.id);
+            const bgColors = [
+              "bg-blue-50/70 border-blue-100",
+              "bg-violet-50/70 border-violet-100",
+              "bg-amber-50/60 border-amber-100",
+              "bg-rose-50/60 border-rose-100",
+              "bg-teal-50/60 border-teal-100",
+            ];
+            const colorClass = bgColors[floorIndex % bgColors.length];
+            return (
+              <div
+                key={floor.id}
+                className={`flex gap-3 p-4 rounded-lg border transition-colors ${colorClass}`}
+              >
+                {/* Thumbnail preview */}
+                {plan ? (
+                  <div className="flex-shrink-0 w-20 h-16 rounded overflow-hidden border border-neutral-200 bg-white">
+                    <img
+                      src={plan.imageUrl}
+                      alt={`${floor.name} plan`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex-shrink-0 w-20 h-16 rounded border-2 border-dashed border-neutral-200 bg-white/60 flex items-center justify-center">
+                    <Upload className="w-5 h-5 text-neutral-300" />
+                  </div>
+                )}
+
+                {/* Floor info */}
+                <div className="flex-1 min-w-0 flex flex-col justify-center gap-1.5">
+                  {editingFloorId === floor.id ? (
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={commitEdit}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit();
+                        if (e.key === "Escape") setEditingFloorId(null);
+                      }}
+                      autoFocus
+                      className="w-full px-2 py-1 text-sm font-semibold border border-[#00775B] rounded outline-none focus:ring-1 focus:ring-[#00775B] bg-white"
+                    />
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-neutral-800 truncate">{floor.name}</span>
+                      <button
+                        onClick={() => startEdit(floor)}
+                        className="text-neutral-300 hover:text-neutral-500 transition-colors flex-shrink-0"
+                        title="Rename floor"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                  {plan ? (
+                    <div className="text-[10px] text-neutral-500 font-medium">
+                      {plan.naturalWidth} × {plan.naturalHeight} px
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-neutral-400">No floor plan uploaded</div>
+                  )}
+                </div>
+
+                {/* Upload / replace */}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {plan ? (
+                    <>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-[#00775B]">
+                        <Check className="w-3.5 h-3.5" />
+                        Uploaded
+                      </div>
+                      <button
+                        onClick={() => fileInputRefs.current[floor.id]?.click()}
+                        className="px-2.5 py-1.5 text-xs font-semibold border border-neutral-200 rounded hover:border-[#00775B] hover:text-[#00775B] bg-white transition-colors"
+                      >
+                        Replace
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => fileInputRefs.current[floor.id]?.click()}
+                      className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border-2 border-dashed border-neutral-300 rounded hover:border-[#00775B] hover:text-[#00775B] bg-white transition-colors"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      Upload Plan
+                    </button>
+                  )}
+                </div>
+
+                {/* Delete */}
+                <button
+                  onClick={() => deleteFloor(floor.id)}
+                  disabled={floors.length === 1}
+                  className="text-neutral-300 hover:text-red-400 transition-colors disabled:opacity-20 disabled:cursor-not-allowed flex-shrink-0 self-center"
+                  title="Delete floor"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+
+                <input
+                  ref={(el) => { fileInputRefs.current[floor.id] = el; }}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleFileChange(floor.id, e)}
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        {floors.length === 0 && (
+          <div className="text-center text-neutral-400 text-sm py-8">
+            Click "Add Floor" to get started.
+          </div>
+        )}
+
+        <div className="text-xs text-neutral-400 bg-neutral-50 rounded p-3 border border-neutral-100">
+          Tip: You'll align each floor plan to the grid and set the real-world scale in the next step.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Align + Scale Step (Step 2) ────────────────────────────────────────────
+
+interface AlignAndScaleStepProps {
+  floorPlan: FloorPlan;
+  gd: GridDims;
+  alignRect: AlignRect;
+  onAlignRectChange: (r: AlignRect) => void;
+  onScaleChange: (scale: Scale | null) => void;
+  existingScale: Scale | null;
+  nextFloor: Floor | null;
+  onNextFloor: () => void;
+}
+
+const AlignAndScaleStep = ({
   floorPlan,
-}: {
-  zones: ZoneConfig[];
-  selectedZone: string | null;
-  onZoneCreate: (zone: Omit<ZoneConfig, "id">) => void;
-  onZoneSelect: (zoneId: string | null) => void;
-  onZoneDelete: (zoneId: string) => void;
-  onZoneUpdate: (zoneId: string, updates: Partial<ZoneConfig>) => void;
-  floor: string;
+  gd,
+  alignRect,
+  onAlignRectChange,
+  onScaleChange,
+  existingScale,
+  nextFloor,
+  onNextFloor,
+}: AlignAndScaleStepProps) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [subMode, setSubMode] = useState<"align" | "scale">("align");
+
+  const dragRef = useRef<{
+    type: "move" | "corner";
+    corner?: "tl" | "tr" | "bl" | "br";
+    startX: number;
+    startY: number;
+    startRect: AlignRect;
+  } | null>(null);
+
+  const [scaleA, setScaleA] = useState<ScalePoint | null>(null);
+  const [scaleB, setScaleB] = useState<ScalePoint | null>(null);
+  const [distance, setDistance] = useState<string>("");
+  const [unit, setUnit] = useState<"m" | "ft" | "cm" | "mm">("m");
+  const [nextPoint, setNextPoint] = useState<"A" | "B">("A");
+
+  // Skip the first effect run (component mount) to avoid clearing stored scale
+  const mountedRef = useRef(false);
+
+  const { canvasW, canvasH } = gd;
+  const snapToGrid = (val: number) => Math.round(val / CELL_SIZE) * CELL_SIZE;
+
+  const pixelDist =
+    scaleA && scaleB
+      ? Math.sqrt(Math.pow(scaleB.x - scaleA.x, 2) + Math.pow(scaleB.y - scaleA.y, 2))
+      : null;
+  const pxPerUnit =
+    pixelDist && distance && parseFloat(distance) > 0
+      ? pixelDist / parseFloat(distance)
+      : null;
+  const cellCount = pixelDist !== null ? pixelDist / CELL_SIZE : null;
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    if (pxPerUnit) {
+      onScaleChange({ pxPerUnit, unit });
+    }
+  }, [scaleA, scaleB, distance, unit, pxPerUnit]);
+
+  const clearScale = () => {
+    setScaleA(null);
+    setScaleB(null);
+    setNextPoint("A");
+    setDistance("");
+    onScaleChange(null);
+  };
+
+  // Align drag handlers
+  const handleAlignMouseDown = (
+    e: React.MouseEvent<SVGElement>,
+    type: "move" | "corner",
+    corner?: "tl" | "tr" | "bl" | "br",
+  ) => {
+    if (subMode !== "align") return;
+    e.stopPropagation();
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const pt = getSVGPoint(svgEl, e.clientX, e.clientY);
+    dragRef.current = { type, corner, startX: pt.x, startY: pt.y, startRect: { ...alignRect } };
+  };
+
+  useEffect(() => {
+    if (subMode !== "align") return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const drag = dragRef.current;
+      const svgEl = svgRef.current;
+      if (!drag || !svgEl) return;
+      const pt = getSVGPoint(svgEl, e.clientX, e.clientY);
+      const dx = pt.x - drag.startX;
+      const dy = pt.y - drag.startY;
+      const r = drag.startRect;
+      if (drag.type === "move") {
+        onAlignRectChange({ ...alignRect, x: r.x + dx, y: r.y + dy });
+      } else if (drag.type === "corner" && drag.corner) {
+        let newW = r.width;
+        let newH = r.height;
+        let newX = r.x;
+        let newY = r.y;
+        const aspect = r.width / r.height;
+        if (drag.corner === "br") {
+          newW = Math.max(CELL_SIZE * 2, r.width + dx);
+          newH = newW / aspect;
+        } else if (drag.corner === "bl") {
+          newW = Math.max(CELL_SIZE * 2, r.width - dx);
+          newH = newW / aspect;
+          newX = r.x + r.width - newW;
+        } else if (drag.corner === "tr") {
+          newW = Math.max(CELL_SIZE * 2, r.width + dx);
+          newH = newW / aspect;
+          newY = r.y + r.height - newH;
+        } else if (drag.corner === "tl") {
+          newW = Math.max(CELL_SIZE * 2, r.width - dx);
+          newH = newW / aspect;
+          newX = r.x + r.width - newW;
+          newY = r.y + r.height - newH;
+        }
+        onAlignRectChange({ x: newX, y: newY, width: newW, height: newH });
+      }
+    };
+    const handleMouseUp = () => { dragRef.current = null; };
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [subMode, alignRect, onAlignRectChange]);
+
+  const handleScaleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (subMode !== "scale") return;
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const pt = getSVGPoint(svgEl, e.clientX, e.clientY);
+    const snapped = { x: snapToGrid(pt.x), y: snapToGrid(pt.y) };
+    if (nextPoint === "A") { setScaleA(snapped); setNextPoint("B"); }
+    else { setScaleB(snapped); setNextPoint("A"); }
+  };
+
+  const handleZoom = (factor: number) => {
+    const cx = alignRect.x + alignRect.width / 2;
+    const cy = alignRect.y + alignRect.height / 2;
+    const newW = alignRect.width * factor;
+    const newH = alignRect.height * factor;
+    onAlignRectChange({ x: cx - newW / 2, y: cy - newH / 2, width: newW, height: newH });
+  };
+
+  const handleFit = () => onAlignRectChange({ x: 0, y: 0, width: canvasW, height: canvasH });
+
+  const scaleIsSet = pxPerUnit !== null || existingScale !== null;
+
+  return (
+    <div className="flex-1 flex min-h-0">
+      <CanvasContainer canvasW={canvasW} canvasH={canvasH}>
+        <svg
+          ref={svgRef}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            display: "block", userSelect: "none",
+            cursor: subMode === "align" ? "default" : "crosshair",
+          }}
+          viewBox={`0 0 ${canvasW} ${canvasH}`}
+          preserveAspectRatio="none"
+          onClick={handleScaleClick}
+        >
+          <defs>
+            <pattern id="align-grid" width={CELL_SIZE} height={CELL_SIZE} patternUnits="userSpaceOnUse">
+              <rect width={CELL_SIZE} height={CELL_SIZE} fill="none" stroke="#ffffff" strokeWidth="0.5" opacity="0.4" />
+            </pattern>
+          </defs>
+
+          {/* 1. Dark background */}
+          <rect width={canvasW} height={canvasH} fill="#1a1a1a" />
+
+          {/* 2. Floor plan image */}
+          <image
+            href={floorPlan.imageUrl}
+            x={alignRect.x}
+            y={alignRect.y}
+            width={alignRect.width}
+            height={alignRect.height}
+            preserveAspectRatio="none"
+            opacity={0.55}
+            style={{
+              cursor: subMode === "align" ? "move" : "default",
+              pointerEvents: subMode === "align" ? "auto" : "none",
+            }}
+            onMouseDown={(e) => handleAlignMouseDown(e, "move")}
+          />
+
+          {/* 3. Grid ABOVE floor plan */}
+          <rect width={canvasW} height={canvasH} fill="url(#align-grid)" style={{ pointerEvents: "none" }} />
+
+          {/* 4. Alignment handles */}
+          {subMode === "align" &&
+            (
+              [
+                { id: "tl" as const, x: alignRect.x, y: alignRect.y },
+                { id: "tr" as const, x: alignRect.x + alignRect.width, y: alignRect.y },
+                { id: "bl" as const, x: alignRect.x, y: alignRect.y + alignRect.height },
+                { id: "br" as const, x: alignRect.x + alignRect.width, y: alignRect.y + alignRect.height },
+              ] as const
+            ).map((h) => (
+              <rect
+                key={h.id}
+                x={h.x - HANDLE_SIZE / 2}
+                y={h.y - HANDLE_SIZE / 2}
+                width={HANDLE_SIZE}
+                height={HANDLE_SIZE}
+                fill="#00775B"
+                stroke="white"
+                strokeWidth="1.5"
+                rx="2"
+                style={{ cursor: "nwse-resize" }}
+                onMouseDown={(e) => handleAlignMouseDown(e, "corner", h.id)}
+              />
+            ))}
+
+          {/* 5. Scale points */}
+          {scaleA && (
+            <>
+              <circle cx={scaleA.x} cy={scaleA.y} r={6} fill="#FF6B6B" stroke="white" strokeWidth="2" />
+              <text x={scaleA.x + 10} y={scaleA.y - 6} fill="#FF6B6B" fontSize="12" fontWeight="bold">A</text>
+            </>
+          )}
+          {scaleB && (
+            <>
+              <circle cx={scaleB.x} cy={scaleB.y} r={6} fill="#4ECDC4" stroke="white" strokeWidth="2" />
+              <text x={scaleB.x + 10} y={scaleB.y - 6} fill="#4ECDC4" fontSize="12" fontWeight="bold">B</text>
+            </>
+          )}
+          {scaleA && scaleB && (
+            <g>
+              <line
+                x1={scaleA.x} y1={scaleA.y} x2={scaleB.x} y2={scaleB.y}
+                stroke="white" strokeWidth="1.5" strokeDasharray="4 3" opacity="0.7"
+              />
+              {cellCount !== null && (
+                <>
+                  <rect
+                    x={(scaleA.x + scaleB.x) / 2 - 28}
+                    y={(scaleA.y + scaleB.y) / 2 - 20}
+                    width="56" height="16"
+                    fill="rgba(0,0,0,0.65)" rx="3"
+                    style={{ pointerEvents: "none" }}
+                  />
+                  <text
+                    x={(scaleA.x + scaleB.x) / 2}
+                    y={(scaleA.y + scaleB.y) / 2 - 9}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="white"
+                    fontSize="10"
+                    fontWeight="bold"
+                    style={{ pointerEvents: "none" }}
+                  >
+                    {cellCount.toFixed(1)}× edge
+                  </text>
+                </>
+              )}
+            </g>
+          )}
+        </svg>
+      </CanvasContainer>
+
+      {/* Right panel */}
+      <div className="w-64 flex-shrink-0 border-l border-neutral-200 bg-white flex flex-col overflow-hidden">
+        {/* Mode toggle */}
+        <div className="p-3 border-b border-neutral-100">
+          <div className="flex gap-1 p-1 bg-neutral-100 rounded">
+            <button
+              onClick={() => setSubMode("align")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-bold uppercase tracking-wide transition-colors",
+                subMode === "align" ? "bg-white text-[#00775B] shadow-sm" : "text-neutral-400 hover:text-neutral-700",
+              )}
+            >
+              <Move className="w-3 h-3" /> Align
+            </button>
+            <button
+              onClick={() => setSubMode("scale")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded text-xs font-bold uppercase tracking-wide transition-colors",
+                subMode === "scale" ? "bg-white text-[#00775B] shadow-sm" : "text-neutral-400 hover:text-neutral-700",
+              )}
+            >
+              <Ruler className="w-3 h-3" /> Scale
+              {scaleIsSet && <span className="w-1.5 h-1.5 rounded-full bg-[#00775B] ml-0.5 flex-shrink-0" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
+          {subMode === "align" ? (
+            <>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Position & Size</div>
+                <div className="grid grid-cols-2 gap-2 text-xs text-neutral-600">
+                  {[
+                    ["X", Math.round(alignRect.x)],
+                    ["Y", Math.round(alignRect.y)],
+                    ["W", Math.round(alignRect.width)],
+                    ["H", Math.round(alignRect.height)],
+                  ].map(([label, val]) => (
+                    <div key={label} className="bg-neutral-50 rounded px-2 py-1.5">
+                      <span className="text-neutral-400 font-medium">{label} </span>
+                      <span className="font-semibold">{val}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Zoom</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleZoom(1.2)}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 border border-neutral-200 rounded text-xs font-semibold hover:border-[#00775B] hover:text-[#00775B] transition-colors"
+                  >
+                    <ZoomIn className="w-3 h-3" /> In
+                  </button>
+                  <button
+                    onClick={() => handleZoom(1 / 1.2)}
+                    className="flex-1 flex items-center justify-center gap-1 py-1.5 border border-neutral-200 rounded text-xs font-semibold hover:border-[#00775B] hover:text-[#00775B] transition-colors"
+                  >
+                    <ZoomOut className="w-3 h-3" /> Out
+                  </button>
+                </div>
+                <button
+                  onClick={handleFit}
+                  className="w-full mt-2 py-1.5 border border-neutral-200 rounded text-xs font-semibold hover:border-[#00775B] hover:text-[#00775B] transition-colors"
+                >
+                  Fit to Canvas
+                </button>
+              </div>
+              <div className="text-xs text-neutral-400 bg-neutral-50 rounded p-2 leading-relaxed">
+                Drag the image to reposition. Drag corners to resize proportionally.
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Existing scale indicator */}
+              {existingScale && !pxPerUnit && (
+                <div className="flex items-center gap-2 bg-[#E5FFF9] border border-[#00775B]/20 rounded p-2">
+                  <Check className="w-3.5 h-3.5 text-[#00775B] flex-shrink-0" />
+                  <div>
+                    <div className="text-xs font-bold text-[#00775B]">Scale set</div>
+                    <div className="text-[10px] text-[#00775B]/70">
+                      1 cell ≈ {(CELL_SIZE / existingScale.pxPerUnit).toFixed(3)} {existingScale.unit}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-1">Set Scale Points</div>
+                <div className="text-xs text-neutral-500 bg-neutral-50 rounded p-2 mb-3 leading-relaxed">
+                  Click two grid points on the canvas.
+                  Next: <span className="font-bold text-neutral-700">{nextPoint}</span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {[
+                    { label: "A", point: scaleA, color: "#FF6B6B", bg: "bg-red-50", border: "border-[#FF6B6B]" },
+                    { label: "B", point: scaleB, color: "#4ECDC4", bg: "bg-teal-50", border: "border-[#4ECDC4]" },
+                  ].map(({ label, point, color, bg, border }) => (
+                    <div key={label} className={cn("flex items-center gap-2 px-3 py-2 rounded border text-xs", point ? `${border} ${bg}` : "border-neutral-200 bg-neutral-50")}>
+                      <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                      {point ? (
+                        <span className="text-neutral-700 font-semibold">{label} set ✓</span>
+                      ) : (
+                        <span className="text-neutral-400">Point {label} not set</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {(scaleA || scaleB) && (
+                  <button
+                    onClick={clearScale}
+                    className="w-full mt-2 py-1.5 text-xs font-semibold border border-neutral-200 rounded hover:border-red-300 hover:text-red-500 transition-colors"
+                  >
+                    Clear Points
+                  </button>
+                )}
+              </div>
+
+              {scaleA && scaleB && cellCount !== null && (
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Real-World Distance</div>
+                  <div className="text-xs text-neutral-600 font-mono mb-2 bg-neutral-50 rounded px-2 py-1.5">
+                    <span className="font-bold text-neutral-800">{cellCount.toFixed(1)}</span>
+                    <span className="text-neutral-400"> × X = </span>
+                    <span className="font-bold text-neutral-800">{distance || "?"}</span>
+                    <span className="text-neutral-400"> {unit}</span>
+                  </div>
+                  <div className="flex flex-col gap-1.5 mb-2">
+                    <input
+                      type="number"
+                      value={distance}
+                      onChange={(e) => setDistance(e.target.value)}
+                      placeholder="distance…"
+                      className="w-full border border-neutral-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#00775B]"
+                    />
+                    <div className="flex gap-0.5">
+                      {(["m", "ft", "cm", "mm"] as const).map((u) => (
+                        <button
+                          key={u}
+                          onClick={() => setUnit(u)}
+                          className={cn(
+                            "px-1.5 py-1 text-[10px] font-bold rounded border transition-colors",
+                            unit === u ? "bg-[#00775B] text-white border-[#00775B]" : "bg-white text-neutral-400 border-neutral-200 hover:border-[#00775B]",
+                          )}
+                        >
+                          {u}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {pxPerUnit && (
+                    <div className="bg-[#E5FFF9] rounded p-2 text-xs text-[#00775B]">
+                      <div className="text-[10px] text-[#00775B]/70 font-mono mb-1">
+                        {cellCount.toFixed(1)} × X = {distance} {unit}
+                      </div>
+                      <div className="font-bold text-sm">
+                        1 cell = {(CELL_SIZE / pxPerUnit).toFixed(3)} {unit}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Next Floor button */}
+              {nextFloor && scaleIsSet && (
+                <button
+                  onClick={onNextFloor}
+                  className="w-full flex items-center justify-center gap-2 py-2 bg-[#00775B] hover:bg-[#005f48] text-white rounded text-xs font-bold uppercase tracking-wide transition-colors mt-auto"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                  Next: {nextFloor.name}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Zone Drawing Canvas (Step 3) ───────────────────────────────────────────
+
+interface ZoneDrawingCanvasProps {
   floorPlan: FloorPlan | null;
-}) => {
-  const canvasRef = useRef<SVGSVGElement>(null);
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
-  const [isDragging, setIsDragging] = useState(false);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [showZoneNameInput, setShowZoneNameInput] = useState(false);
+  gd: GridDims;
+  alignRect: AlignRect;
+  zones: ZoneConfig[];
+  currentFloor: string;
+  onZonesChange: (zones: ZoneConfig[]) => void;
+  selectedZone: string | null;
+  onSelectedZoneChange: (id: string | null) => void;
+  scale: Scale | null;
+  nextFloor: Floor | null;
+  onNextFloor: () => void;
+}
+
+const ZoneDrawingCanvas = ({
+  floorPlan,
+  gd,
+  alignRect,
+  zones,
+  currentFloor,
+  onZonesChange,
+  selectedZone,
+  onSelectedZoneChange,
+  scale,
+  nextFloor,
+  onNextFloor,
+}: ZoneDrawingCanvasProps) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [brushSize, setBrushSize] = useState<1 | 2 | 3>(1);
+  const [drawMode, setDrawMode] = useState<"paint" | "erase">("paint");
+  const [hoverCell, setHoverCell] = useState<{ x: number; y: number } | null>(null);
   const [newZoneName, setNewZoneName] = useState("");
+  const [pendingCells, setPendingCells] = useState<Set<string>>(new Set());
+  const isDrawingRef = useRef(false);
 
-  const currentFloorZones = zones.filter((z) => z.floor === floor);
+  const { canvasW, canvasH } = gd;
+  const floorZones = zones.filter((z) => z.floor === currentFloor);
+  const activeZone = floorZones.find((z) => z.id === selectedZone);
 
-  const getCellKey = (gridX: number, gridY: number) => `${gridX},${gridY}`;
+  const getCellFromSVGPoint = (svgPt: { x: number; y: number }) => ({
+    x: Math.floor(svgPt.x / CELL_SIZE),
+    y: Math.floor(svgPt.y / CELL_SIZE),
+  });
 
-  const isCellOccupied = (gridX: number, gridY: number, excludeZoneId?: string) => {
-    return currentFloorZones.some(
-      (zone) => zone.id !== excludeZoneId && zone.cells.has(getCellKey(gridX, gridY))
+  const paintCells = (svgPt: { x: number; y: number }, mode: "paint" | "erase") => {
+    if (!activeZone) return;
+    const cell = getCellFromSVGPoint(svgPt);
+    const brushCells = getBrushCells(cell.x, cell.y, brushSize, gd);
+    const newCells = new Set(activeZone.cells);
+    brushCells.forEach((bc) => {
+      const k = `${bc.x},${bc.y}`;
+      if (mode === "paint") newCells.add(k);
+      else newCells.delete(k);
+    });
+    onZonesChange(zones.map((z) => (z.id === activeZone.id ? { ...z, cells: newCells } : z)));
+  };
+
+  const paintPending = (svgPt: { x: number; y: number }, mode: "paint" | "erase") => {
+    const cell = getCellFromSVGPoint(svgPt);
+    const brushCells = getBrushCells(cell.x, cell.y, brushSize, gd);
+    const newPending = new Set(pendingCells);
+    brushCells.forEach((bc) => {
+      const k = `${bc.x},${bc.y}`;
+      if (mode === "paint") newPending.add(k);
+      else newPending.delete(k);
+    });
+    setPendingCells(newPending);
+  };
+
+  const handleSVGMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (e.button !== 0 && e.button !== 2) return;
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const pt = getSVGPoint(svgEl, e.clientX, e.clientY);
+    const cell = getCellFromSVGPoint(pt);
+
+    if (!activeZone) {
+      // Drawing into pending selection
+      const k = `${cell.x},${cell.y}`;
+      const mode = pendingCells.has(k) ? "erase" : "paint";
+      setDrawMode(mode);
+      isDrawingRef.current = true;
+      paintPending(pt, mode);
+    } else {
+      // Drawing into active zone — toggle: click painted cell to erase
+      const k = `${cell.x},${cell.y}`;
+      const mode = e.button === 2 ? "erase" : (activeZone.cells.has(k) ? "erase" : "paint");
+      setDrawMode(mode);
+      isDrawingRef.current = true;
+      paintCells(pt, mode);
+    }
+  };
+
+  const handleSVGMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const pt = getSVGPoint(svgEl, e.clientX, e.clientY);
+    const cell = getCellFromSVGPoint(pt);
+    if (cell.x >= 0 && cell.x < gd.cols && cell.y >= 0 && cell.y < gd.rows) {
+      setHoverCell(cell);
+    } else {
+      setHoverCell(null);
+    }
+    if (isDrawingRef.current) {
+      if (!activeZone) paintPending(pt, drawMode);
+      else paintCells(pt, drawMode);
+    }
+  };
+
+  useEffect(() => {
+    const handleMouseUp = () => { isDrawingRef.current = false; };
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, []);
+
+  const addZone = () => {
+    if (!newZoneName.trim() || pendingCells.size === 0) return;
+    const newZone: ZoneConfig = {
+      id: `zone-${Date.now()}`,
+      name: newZoneName.trim(),
+      cells: new Set(pendingCells),
+      color: ZONE_COLORS[floorZones.length % ZONE_COLORS.length],
+      floor: currentFloor,
+    };
+    onZonesChange([...zones, newZone]);
+    onSelectedZoneChange(null);
+    setPendingCells(new Set());
+    setNewZoneName("");
+  };
+
+  const deleteZone = (id: string) => {
+    onZonesChange(zones.filter((z) => z.id !== id));
+    if (selectedZone === id) onSelectedZoneChange(null);
+  };
+
+  const getZoneArea = (zone: ZoneConfig): string => {
+    if (!scale || scale.pxPerUnit <= 0) return `${zone.cells.size} cells`;
+    const cellSide = CELL_SIZE / scale.pxPerUnit;
+    const area = zone.cells.size * cellSide * cellSide;
+    return `${area.toFixed(1)} ${scale.unit}²`;
+  };
+
+  return (
+    <div className="flex-1 flex min-h-0">
+      <CanvasContainer canvasW={canvasW} canvasH={canvasH}>
+        <svg
+          ref={svgRef}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            display: "block", userSelect: "none",
+            cursor: "crosshair",
+          }}
+          viewBox={`0 0 ${canvasW} ${canvasH}`}
+          preserveAspectRatio="none"
+          onMouseDown={handleSVGMouseDown}
+          onMouseMove={handleSVGMouseMove}
+          onMouseLeave={() => setHoverCell(null)}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <defs>
+            <pattern id="zone-grid" width={CELL_SIZE} height={CELL_SIZE} patternUnits="userSpaceOnUse">
+              <rect width={CELL_SIZE} height={CELL_SIZE} fill="none" stroke="#ffffff" strokeWidth="0.5" opacity="0.35" />
+            </pattern>
+          </defs>
+
+          {/* 1. Background */}
+          <rect width={canvasW} height={canvasH} fill="#1a1a1a" />
+
+          {/* 2. Floor plan */}
+          {floorPlan && (
+            <image
+              href={floorPlan.imageUrl}
+              x={alignRect.x}
+              y={alignRect.y}
+              width={alignRect.width}
+              height={alignRect.height}
+              preserveAspectRatio="none"
+              opacity={0.55}
+              style={{ pointerEvents: "none" }}
+            />
+          )}
+
+          {/* 3. Grid ABOVE floor plan */}
+          <rect width={canvasW} height={canvasH} fill="url(#zone-grid)" style={{ pointerEvents: "none" }} />
+
+          {/* 4. Pending cells */}
+          {Array.from(pendingCells).map((cellKey) => {
+            const [cx, cy] = cellKey.split(",").map(Number);
+            return (
+              <rect
+                key={`pending-${cellKey}`}
+                x={cx * CELL_SIZE} y={cy * CELL_SIZE}
+                width={CELL_SIZE} height={CELL_SIZE}
+                fill="#00775B" opacity={0.5}
+                style={{ pointerEvents: "none" }}
+              />
+            );
+          })}
+
+          {/* 5. Zone cells */}
+          {floorZones.map((zone) =>
+            Array.from(zone.cells).map((cellKey) => {
+              const [cx, cy] = cellKey.split(",").map(Number);
+              return (
+                <rect
+                  key={`${zone.id}-${cellKey}`}
+                  x={cx * CELL_SIZE} y={cy * CELL_SIZE}
+                  width={CELL_SIZE} height={CELL_SIZE}
+                  fill={zone.color}
+                  opacity={zone.id === selectedZone ? 0.65 : 0.4}
+                  style={{ pointerEvents: "none" }}
+                />
+              );
+            }),
+          )}
+
+          {/* 6. Zone outlines */}
+          {floorZones.map((zone) => {
+            const path = getZoneOutlinePath(zone.cells, CELL_SIZE);
+            if (!path) return null;
+            return (
+              <path
+                key={`outline-${zone.id}`}
+                d={path} fill="none"
+                stroke={zone.color}
+                strokeWidth={zone.id === selectedZone ? 2.5 : 1.5}
+                style={{ pointerEvents: "none" }}
+              />
+            );
+          })}
+
+          {/* 7. Hover preview */}
+          {hoverCell &&
+            getBrushCells(hoverCell.x, hoverCell.y, brushSize, gd).map((bc) => (
+              <rect
+                key={`hover-${bc.x}-${bc.y}`}
+                x={bc.x * CELL_SIZE} y={bc.y * CELL_SIZE}
+                width={CELL_SIZE} height={CELL_SIZE}
+                fill={activeZone ? activeZone.color : "#00775B"}
+                opacity={0.45}
+                stroke={activeZone ? activeZone.color : "#00775B"}
+                strokeWidth="1"
+                style={{ pointerEvents: "none" }}
+              />
+            ))}
+        </svg>
+      </CanvasContainer>
+
+      {/* Right panel */}
+      <div className="w-64 flex-shrink-0 border-l border-neutral-200 bg-white flex flex-col overflow-hidden">
+        {/* Brush size */}
+        <div className="p-3 border-b border-neutral-100">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Brush Size</div>
+          <div className="flex gap-1">
+            {([1, 2, 3] as const).map((bs) => (
+              <button
+                key={bs}
+                onClick={() => setBrushSize(bs)}
+                className={cn(
+                  "flex-1 py-1.5 text-xs font-bold rounded border transition-colors",
+                  brushSize === bs
+                    ? "bg-[#00775B] text-white border-[#00775B]"
+                    : "bg-white text-neutral-500 border-neutral-200 hover:border-[#00775B] hover:text-[#00775B]",
+                )}
+              >
+                {bs}×{bs}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+          {/* Add zone */}
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Add Zone</div>
+            {pendingCells.size > 0 ? (
+              <div className="flex items-center gap-1.5 bg-[#E5FFF9] rounded px-2 py-1.5 mb-2">
+                <Check className="w-3 h-3 text-[#00775B] flex-shrink-0" />
+                <span className="text-xs font-semibold text-[#00775B]">{pendingCells.size} cells selected</span>
+              </div>
+            ) : (
+              <div className="text-xs text-neutral-400 bg-neutral-50 rounded p-2 mb-2 leading-relaxed">
+                {activeZone
+                  ? "Deselect current zone to draw a new selection."
+                  : "Draw on the canvas to select cells, then name the zone."}
+              </div>
+            )}
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={newZoneName}
+                onChange={(e) => setNewZoneName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addZone()}
+                placeholder="Zone name…"
+                className="flex-1 border border-neutral-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-[#00775B]"
+              />
+              <button
+                onClick={addZone}
+                disabled={!newZoneName.trim() || pendingCells.size === 0}
+                title={pendingCells.size === 0 ? "Draw cells on the canvas first" : "Add zone"}
+                className="px-2 py-1.5 bg-[#00775B] text-white rounded text-xs disabled:opacity-40 hover:bg-[#005f48] transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+            {pendingCells.size > 0 && newZoneName.trim() === "" && (
+              <p className="text-[10px] text-amber-500 mt-1 font-medium">Enter a name for this zone</p>
+            )}
+          </div>
+
+          {/* Zones list */}
+          {floorZones.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Zones</div>
+              <div className="flex flex-col gap-1">
+                {floorZones.map((zone) => (
+                  <div
+                    key={zone.id}
+                    onClick={() => onSelectedZoneChange(selectedZone === zone.id ? null : zone.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-2 rounded cursor-pointer border transition-colors",
+                      selectedZone === zone.id
+                        ? "border-[#00775B] bg-green-50"
+                        : "border-transparent hover:bg-neutral-50",
+                    )}
+                  >
+                    <div className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: zone.color }} />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-neutral-800 truncate">{zone.name}</div>
+                      <div className="text-[10px] text-neutral-400 font-medium">{getZoneArea(zone)}</div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteZone(zone.id); }}
+                      className="text-neutral-300 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {activeZone && (
+            <div className="text-xs bg-neutral-50 rounded p-2 text-neutral-500 leading-relaxed">
+              Editing{" "}
+              <span className="font-semibold" style={{ color: activeZone.color }}>
+                {activeZone.name}
+              </span>
+              . Click painted cells to erase.
+            </div>
+          )}
+
+          {/* Next Floor button */}
+          {nextFloor && floorZones.length > 0 && (
+            <button
+              onClick={onNextFloor}
+              className="w-full flex items-center justify-center gap-2 py-2 bg-[#00775B] hover:bg-[#005f48] text-white rounded text-xs font-bold uppercase tracking-wide transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+              Next: {nextFloor.name}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── Camera Viewpoint Canvas (Step 4) ───────────────────────────────────────
+
+interface CameraViewpointCanvasProps {
+  floorPlan: FloorPlan | null;
+  gd: GridDims;
+  alignRect: AlignRect;
+  zones: ZoneConfig[];
+  cameraViewpoints: CameraViewpoint[];
+  currentFloor: string;
+  onCameraViewpointsChange: (cvs: CameraViewpoint[]) => void;
+  nextFloor: Floor | null;
+  onNextFloor: () => void;
+}
+
+const CameraViewpointCanvas = ({
+  floorPlan,
+  gd,
+  alignRect,
+  zones,
+  cameraViewpoints,
+  currentFloor,
+  onCameraViewpointsChange,
+  nextFloor,
+  onNextFloor,
+}: CameraViewpointCanvasProps) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [selectedCVId, setSelectedCVId] = useState<string | null>(null);
+  const [cvDrawMode, setCvDrawMode] = useState<"paint" | "erase">("paint");
+  const isDrawingRef = useRef(false);
+
+  const { canvasW, canvasH } = gd;
+  const floorCVs = cameraViewpoints.filter((cv) => cv.floor === currentFloor);
+  const floorZones = zones.filter((z) => z.floor === currentFloor);
+  const activeCv = floorCVs.find((cv) => cv.id === selectedCVId);
+
+  const getCellFromSVGPoint = (svgPt: { x: number; y: number }) => ({
+    x: Math.floor(svgPt.x / CELL_SIZE),
+    y: Math.floor(svgPt.y / CELL_SIZE),
+  });
+
+  const paintCells = (svgPt: { x: number; y: number }, mode: "paint" | "erase") => {
+    if (!activeCv) return;
+    const cell = getCellFromSVGPoint(svgPt);
+    if (cell.x < 0 || cell.x >= gd.cols || cell.y < 0 || cell.y >= gd.rows) return;
+    const k = `${cell.x},${cell.y}`;
+    const newCells = new Set(activeCv.cells);
+    if (mode === "paint") newCells.add(k);
+    else newCells.delete(k);
+    onCameraViewpointsChange(
+      cameraViewpoints.map((cv) => cv.id === activeCv.id ? { ...cv, cells: newCells } : cv),
     );
   };
 
-  const handleCellClick = (gridX: number, gridY: number) => {
-    if (selectedZone) return; // Don't allow drawing when a zone is selected
-
-    const cellKey = getCellKey(gridX, gridY);
-    const newSelectedCells = new Set(selectedCells);
-
-    if (newSelectedCells.has(cellKey)) {
-      newSelectedCells.delete(cellKey);
-    } else {
-      if (isCellOccupied(gridX, gridY)) {
-        alert("This cell is already occupied by another zone!");
-        return;
-      }
-      newSelectedCells.add(cellKey);
-    }
-
-    setSelectedCells(newSelectedCells);
-  };
-
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (selectedZone || !canvasRef.current) return;
-    setIsDragging(true);
+    if (!activeCv || e.button !== 0) return;
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const pt = getSVGPoint(svgEl, e.clientX, e.clientY);
+    const cell = getCellFromSVGPoint(pt);
+    const k = `${cell.x},${cell.y}`;
+    // Toggle: clicking already-painted cell erases it
+    const mode = activeCv.cells.has(k) ? "erase" : "paint";
+    setCvDrawMode(mode);
+    isDrawingRef.current = true;
+    paintCells(pt, mode);
   };
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDragging || !canvasRef.current) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const svgX = ((e.clientX - rect.left) / rect.width) * CANVAS_WIDTH;
-    const svgY = ((e.clientY - rect.top) / rect.height) * CANVAS_HEIGHT;
-
-    const gridX = Math.floor(svgX / CELL_SIZE);
-    const gridY = Math.floor(svgY / CELL_SIZE);
-
-    if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
-      const cellKey = getCellKey(gridX, gridY);
-      if (!selectedCells.has(cellKey) && !isCellOccupied(gridX, gridY)) {
-        const newSelectedCells = new Set(selectedCells);
-        newSelectedCells.add(cellKey);
-        setSelectedCells(newSelectedCells);
-      }
-    }
+    if (!isDrawingRef.current) return;
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    paintCells(getSVGPoint(svgEl, e.clientX, e.clientY), cvDrawMode);
   };
 
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
+  useEffect(() => {
+    const handleMouseUp = () => { isDrawingRef.current = false; };
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, []);
 
-  const handleCreateZone = () => {
-    if (selectedCells.size === 0) {
-      alert("Please select at least one cell!");
-      return;
-    }
-
-    // Check if cells are continuous
-    if (!areCellsContinuous(selectedCells)) {
-      alert("Selected cells must be continuous! Please select cells that are connected to each other.");
-      return;
-    }
-
-    // Show the zone name input
-    setShowZoneNameInput(true);
-  };
-
-  const handleConfirmZoneCreation = () => {
-    if (!newZoneName.trim()) {
-      alert("Please enter a zone name!");
-      return;
-    }
-
-    onZoneCreate({
-      name: newZoneName,
-      cells: new Set(selectedCells),
-      color: ZONE_COLORS[currentFloorZones.length % ZONE_COLORS.length],
-      floor,
-    });
-
-    setSelectedCells(new Set());
-    setNewZoneName("");
-    setShowZoneNameInput(false);
-    onZoneSelect(null);
-  };
-
-  const handleCancelZoneCreation = () => {
-    setShowZoneNameInput(false);
-    setNewZoneName("");
-  };
-
-  const handleClearSelection = () => {
-    setSelectedCells(new Set());
-    onZoneSelect(null);
-  };
-
-  return (
-    <div className="flex-1 flex gap-4 p-4">
-      {/* Zone Name Input Modal */}
-      {showZoneNameInput && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-2xl p-6 w-96 space-y-4">
-            <div>
-              <h3 className="text-lg font-bold text-neutral-800 mb-2">Create New Zone</h3>
-              <p className="text-sm text-neutral-600">Enter a name for this zone ({selectedCells.size} cells selected)</p>
-            </div>
-            <input
-              type="text"
-              value={newZoneName}
-              onChange={(e) => setNewZoneName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleConfirmZoneCreation();
-                } else if (e.key === "Escape") {
-                  handleCancelZoneCreation();
-                }
-              }}
-              placeholder="e.g., Loading Bay, Server Room"
-              className="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-[#00775B] text-sm"
-              autoFocus
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={handleCancelZoneCreation}
-                className="px-4 py-2 text-sm font-bold text-neutral-700 bg-neutral-100 rounded hover:bg-neutral-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmZoneCreation}
-                className="px-4 py-2 text-sm font-bold text-white bg-[#00775B] rounded hover:bg-[#009e78] transition-colors"
-              >
-                Create Zone
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Canvas */}
-      <div className="flex-1 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-neutral-700">Draw Zones on Grid</h3>
-          <div className="flex gap-2">
-            {selectedCells.size > 0 && (
-              <>
-                <div
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleClearSelection();
-                  }}
-                  className="px-3 py-1.5 text-xs font-bold text-neutral-600 bg-white border border-neutral-300 rounded hover:bg-neutral-50 transition-colors cursor-pointer select-none"
-                >
-                  Clear Selection
-                </div>
-                <div
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleCreateZone();
-                  }}
-                  className="px-3 py-1.5 text-xs font-bold text-white bg-[#00775B] rounded hover:bg-[#009e78] transition-colors flex items-center gap-1.5 cursor-pointer select-none relative z-50"
-                >
-                  <Plus className="w-3.5 h-3.5 pointer-events-none" />
-                  Create Zone ({selectedCells.size} cells)
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Instructions */}
-        <div className="text-xs text-neutral-600 bg-blue-50 p-2 rounded border border-blue-200">
-          <strong>Instructions:</strong> Click or drag to select cells, then click "Create Zone" button above
-        </div>
-
-        <div className="relative bg-neutral-900 rounded border-2 border-neutral-300 overflow-hidden" style={{ height: 480 }}>
-          {/* Floor Plan Background */}
-          {floorPlan && (
-            <img
-              src={floorPlan.imageUrl}
-              alt="Floor Plan"
-              className="absolute inset-0 w-full h-full object-cover opacity-40"
-            />
-          )}
-
-          <svg
-            ref={canvasRef}
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
-            preserveAspectRatio="xMidYMid meet"
-            className="cursor-crosshair relative z-10"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          >
-            {/* Grid Pattern */}
-            <defs>
-              <pattern id="grid-pattern" width={CELL_SIZE} height={CELL_SIZE} patternUnits="userSpaceOnUse">
-                <rect width={CELL_SIZE} height={CELL_SIZE} fill="none" stroke="#D1D5DB" strokeWidth="1" opacity="0.6" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid-pattern)" />
-
-            {/* Grid Cells - Interactive */}
-            {Array.from({ length: GRID_SIZE }).map((_, y) =>
-              Array.from({ length: GRID_SIZE }).map((_, x) => {
-                const cellKey = getCellKey(x, y);
-                const isSelected = selectedCells.has(cellKey);
-                const isOccupied = isCellOccupied(x, y);
-
-                return (
-                  <rect
-                    key={cellKey}
-                    x={x * CELL_SIZE}
-                    y={y * CELL_SIZE}
-                    width={CELL_SIZE}
-                    height={CELL_SIZE}
-                    fill={isSelected ? "#00775B" : isOccupied ? "transparent" : "transparent"}
-                    fillOpacity={isSelected ? 0.4 : 0}
-                    stroke={isSelected ? "#00775B" : "none"}
-                    strokeWidth={isSelected ? 2 : 0}
-                    className="cursor-pointer hover:fill-[#00775B] hover:fill-opacity-20 transition-all"
-                    onClick={() => handleCellClick(x, y)}
-                  />
-                );
-              })
-            )}
-
-            {/* Existing Zones */}
-            {currentFloorZones.map((zone) => {
-              const isSelected = selectedZone === zone.id;
-              const cells = Array.from(zone.cells).map((cell) => {
-                const [x, y] = cell.split(",").map(Number);
-                return { x, y };
-              });
-
-              return (
-                <g
-                  key={zone.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onZoneSelect(zone.id);
-                  }}
-                  className="cursor-pointer"
-                >
-                  {cells.map(({ x, y }) => (
-                    <rect
-                      key={`${x},${y}`}
-                      x={x * CELL_SIZE}
-                      y={y * CELL_SIZE}
-                      width={CELL_SIZE}
-                      height={CELL_SIZE}
-                      fill={zone.color}
-                      fillOpacity={isSelected ? 0.7 : 0.5}
-                      stroke={isSelected ? "#00775B" : zone.color}
-                      strokeWidth={isSelected ? 3 : 1.5}
-                    />
-                  ))}
-                  {/* Zone Label */}
-                  {cells.length > 0 && (
-                    <text
-                      x={cells[0].x * CELL_SIZE + CELL_SIZE / 2}
-                      y={cells[0].y * CELL_SIZE + CELL_SIZE / 2}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="white"
-                      fontSize="10"
-                      fontWeight="bold"
-                      className="pointer-events-none select-none"
-                    >
-                      {zone.name}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        <div className="text-xs text-neutral-500 space-y-1">
-          <p>• Click individual cells or drag to select multiple cells</p>
-          <p>• Selected cells must be continuous (connected)</p>
-          <p>• Zones cannot overlap with each other</p>
-        </div>
-      </div>
-
-      {/* Zone List Panel */}
-      <div className="w-64 bg-white rounded border border-neutral-200 p-3 space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-600">Zones ({currentFloorZones.length})</h4>
-        
-        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-          {currentFloorZones.map((zone) => (
-            <div
-              key={zone.id}
-              onClick={() => onZoneSelect(zone.id)}
-              className={cn(
-                "p-2 rounded border cursor-pointer transition-all",
-                selectedZone === zone.id
-                  ? "border-[#00775B] bg-[#00775B]/5"
-                  : "border-neutral-200 hover:border-neutral-300"
-              )}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: zone.color }} />
-                  <span className="text-xs font-bold text-neutral-800">{zone.name}</span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete zone "${zone.name}"?`)) {
-                      onZoneDelete(zone.id);
-                    }
-                  }}
-                  className="p-1 text-red-600 hover:bg-red-50 rounded"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="text-[10px] text-neutral-500">
-                {zone.cells.size} cell{zone.cells.size !== 1 ? 's' : ''}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {currentFloorZones.length === 0 && (
-          <div className="text-xs text-neutral-400 text-center py-8">
-            No zones created yet.<br />Start drawing on the grid!
-          </div>
-        )}
-      </div>
-    </div>
+  const unassignedCameras = MOCK_CAMERAS.filter(
+    (cam) => !cameraViewpoints.some((cv) => cv.cameraId === cam.id && cv.floor === currentFloor),
   );
-};
 
-// Step 3: Camera Viewpoint Mapping
-const CameraViewpointCanvas = ({
-  zones,
-  cameraViewpoints,
-  onViewpointCreate,
-  onViewpointUpdate,
-  onViewpointDelete,
-  floor,
-  floorPlan,
-}: {
-  zones: ZoneConfig[];
-  cameraViewpoints: CameraViewpoint[];
-  onViewpointCreate: (viewpoint: Omit<CameraViewpoint, "id">) => void;
-  onViewpointUpdate: (id: string, updates: Partial<CameraViewpoint>) => void;
-  onViewpointDelete: (id: string) => void;
-  floor: string;
-  floorPlan: FloorPlan | null;
-}) => {
-  const canvasRef = useRef<SVGSVGElement>(null);
-  const [selectedCamera, setSelectedCamera] = useState<string>("");
-  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
-  const [isDragging, setIsDragging] = useState(false);
-  const [selectedViewpoint, setSelectedViewpoint] = useState<string | null>(null);
-  const [hoveredCamera, setHoveredCamera] = useState<string | null>(null);
-
-  const currentFloorZones = zones.filter((z) => z.floor === floor);
-  const currentFloorViewpoints = cameraViewpoints.filter((v) => v.floor === floor);
-
-  const getCellKey = (gridX: number, gridY: number) => `${gridX},${gridY}`;
-
-  const handleCellClick = (gridX: number, gridY: number) => {
-    if (!selectedCamera) {
-      alert("Please select a camera first!");
-      return;
-    }
-
-    const cellKey = getCellKey(gridX, gridY);
-    const newSelectedCells = new Set(selectedCells);
-
-    if (newSelectedCells.has(cellKey)) {
-      newSelectedCells.delete(cellKey);
-    } else {
-      newSelectedCells.add(cellKey);
-    }
-
-    setSelectedCells(newSelectedCells);
+  const addCamera = (cam: CameraDevice) => {
+    const newCv: CameraViewpoint = {
+      id: `cv-${Date.now()}`,
+      cameraId: cam.id,
+      cameraName: cam.name,
+      cells: new Set(),
+      floor: currentFloor,
+      color: CAMERA_VIEWPOINT_COLORS[floorCVs.length % CAMERA_VIEWPOINT_COLORS.length],
+    };
+    onCameraViewpointsChange([...cameraViewpoints, newCv]);
+    setSelectedCVId(newCv.id);
   };
 
-  const handleMouseDown = () => {
-    if (!selectedCamera) return;
-    setIsDragging(true);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!isDragging || !selectedCamera || !canvasRef.current) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    const svgX = ((e.clientX - rect.left) / rect.width) * CANVAS_WIDTH;
-    const svgY = ((e.clientY - rect.top) / rect.height) * CANVAS_HEIGHT;
-
-    const gridX = Math.floor(svgX / CELL_SIZE);
-    const gridY = Math.floor(svgY / CELL_SIZE);
-
-    if (gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE) {
-      const cellKey = getCellKey(gridX, gridY);
-      if (!selectedCells.has(cellKey)) {
-        const newSelectedCells = new Set(selectedCells);
-        newSelectedCells.add(cellKey);
-        setSelectedCells(newSelectedCells);
-      }
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-  };
-
-  const handleSaveViewpoint = () => {
-    if (!selectedCamera) {
-      alert("Please select a camera!");
-      return;
-    }
-
-    if (selectedCells.size === 0) {
-      alert("Please select at least one cell for the camera viewpoint!");
-      return;
-    }
-
-    const camera = MOCK_CAMERAS.find((c) => c.id === selectedCamera);
-    if (!camera) return;
-
-    // Check if viewpoint already exists for this camera
-    const existingViewpoint = currentFloorViewpoints.find((v) => v.cameraId === selectedCamera);
-
-    if (existingViewpoint) {
-      onViewpointUpdate(existingViewpoint.id, {
-        cells: new Set(selectedCells),
-      });
-    } else {
-      onViewpointCreate({
-        cameraId: camera.id,
-        cameraName: camera.name,
-        cells: new Set(selectedCells),
-        floor,
-        color: CAMERA_VIEWPOINT_COLORS[currentFloorViewpoints.length % CAMERA_VIEWPOINT_COLORS.length],
-      });
-    }
-
-    setSelectedCells(new Set());
-  };
-
-  const handleLoadViewpoint = (cameraId: string) => {
-    const viewpoint = currentFloorViewpoints.find((v) => v.cameraId === cameraId);
-    if (viewpoint) {
-      setSelectedCamera(cameraId);
-      setSelectedCells(new Set(viewpoint.cells));
-    }
+  const removeCv = (id: string) => {
+    onCameraViewpointsChange(cameraViewpoints.filter((cv) => cv.id !== id));
+    if (selectedCVId === id) setSelectedCVId(null);
   };
 
   return (
-    <div className="flex-1 flex gap-4 p-4">
-      {/* Canvas */}
-      <div className="flex-1 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-neutral-700">Map Cameras Field of View</h3>
-          <div className="flex gap-2">
-            {selectedCells.size > 0 && (
-              <>
-                <button
-                  onClick={() => setSelectedCells(new Set())}
-                  className="px-3 py-1.5 text-xs font-bold text-neutral-600 bg-white border border-neutral-300 rounded hover:bg-neutral-50 transition-colors"
-                >
-                  Clear
-                </button>
-                <button
-                  onClick={handleSaveViewpoint}
-                  className="px-3 py-1.5 text-xs font-bold text-white bg-[#00775B] rounded hover:bg-[#009e78] transition-colors flex items-center gap-1.5"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  Save Field of View ({selectedCells.size} cells)
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+    <div className="flex-1 flex min-h-0">
+      <CanvasContainer canvasW={canvasW} canvasH={canvasH}>
+        <svg
+          ref={svgRef}
+          style={{
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            display: "block", userSelect: "none",
+            cursor: activeCv ? "crosshair" : "default",
+          }}
+          viewBox={`0 0 ${canvasW} ${canvasH}`}
+          preserveAspectRatio="none"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+        >
+          <defs>
+            <pattern id="cam-grid" width={CELL_SIZE} height={CELL_SIZE} patternUnits="userSpaceOnUse">
+              <rect width={CELL_SIZE} height={CELL_SIZE} fill="none" stroke="#ffffff" strokeWidth="0.5" opacity="0.2" />
+            </pattern>
+          </defs>
 
-        {/* Camera Selector */}
-        <div className="flex items-center gap-3 p-3 bg-white rounded border border-neutral-200">
-          <Camera className="w-4 h-4 text-neutral-600" />
-          <select
-            value={selectedCamera}
-            onChange={(e) => {
-              setSelectedCamera(e.target.value);
-              setSelectedCells(new Set());
-              if (e.target.value) {
-                handleLoadViewpoint(e.target.value);
-              }
-            }}
-            className="flex-1 px-2 py-1.5 text-sm border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-[#00775B]"
-          >
-            <option value="">Select a camera...</option>
-            {MOCK_CAMERAS.map((camera) => {
-              const hasViewpoint = currentFloorViewpoints.some((v) => v.cameraId === camera.id);
-              return (
-                <option key={camera.id} value={camera.id}>
-                  {camera.name} {hasViewpoint ? "✓" : ""}
-                </option>
-              );
-            })}
-          </select>
-        </div>
+          <rect width={canvasW} height={canvasH} fill="#1a1a1a" />
 
-        <div className="relative bg-neutral-900 rounded border-2 border-neutral-300 overflow-hidden" style={{ height: 480 }}>
-          {/* Floor Plan Background */}
           {floorPlan && (
-            <img
-              src={floorPlan.imageUrl}
-              alt="Floor Plan"
-              className="absolute inset-0 w-full h-full object-cover opacity-40"
+            <image
+              href={floorPlan.imageUrl}
+              x={alignRect.x} y={alignRect.y}
+              width={alignRect.width} height={alignRect.height}
+              preserveAspectRatio="none"
+              opacity={0.55}
+              style={{ pointerEvents: "none" }}
             />
           )}
 
-          {/* Hover Tooltip */}
-          {hoveredCamera && (() => {
-            const viewpoint = currentFloorViewpoints.find(v => v.cameraId === hoveredCamera);
-            if (!viewpoint) return null;
-            
+          <rect width={canvasW} height={canvasH} fill="url(#cam-grid)" style={{ pointerEvents: "none" }} />
+
+          {/* Zone outlines only — solid border, no fill, chip label */}
+          {floorZones.map((zone) => {
+            const path = getZoneOutlinePath(zone.cells, CELL_SIZE);
+            if (!path || zone.cells.size === 0) return null;
+            const cellArr = Array.from(zone.cells);
+            const avgCx = cellArr.reduce((s, k) => s + parseInt(k.split(",")[0]), 0) / cellArr.length;
+            const avgCy = cellArr.reduce((s, k) => s + parseInt(k.split(",")[1]), 0) / cellArr.length;
+            const labelX = (avgCx + 0.5) * CELL_SIZE;
+            const labelY = (avgCy + 0.5) * CELL_SIZE;
+            const chipW = Math.max(32, zone.name.length * 6 + 12);
+            const chipH = 14;
             return (
-              <div className="absolute top-4 left-4 z-20 bg-white/95 backdrop-blur-sm px-3 py-2 rounded shadow-lg border border-neutral-200">
-                <div className="flex items-center gap-2">
-                  <Camera className="w-4 h-4 text-neutral-600" />
-                  <span className="text-xs font-bold text-neutral-800">{viewpoint.cameraName}</span>
-                </div>
-                <div className="text-[10px] text-neutral-500 mt-0.5">
-                  {viewpoint.cells.size} cells visible
-                </div>
-              </div>
-            );
-          })()}
-
-          <svg
-            ref={canvasRef}
-            width="100%"
-            height="100%"
-            viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`}
-            preserveAspectRatio="xMidYMid meet"
-            className="cursor-crosshair relative z-10"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
-          >
-            {/* Grid Pattern */}
-            <defs>
-              <pattern id="grid-pattern-camera" width={CELL_SIZE} height={CELL_SIZE} patternUnits="userSpaceOnUse">
-                <rect width={CELL_SIZE} height={CELL_SIZE} fill="none" stroke="#D1D5DB" strokeWidth="1" opacity="0.6" />
-              </pattern>
-            </defs>
-            <rect width="100%" height="100%" fill="url(#grid-pattern-camera)" />
-
-            {/* Zones (as reference) */}
-            {currentFloorZones.map((zone) => {
-              const cells = Array.from(zone.cells).map((cell) => {
-                const [x, y] = cell.split(",").map(Number);
-                return { x, y };
-              });
-
-              // Calculate center of zone for label
-              const centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
-              const centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
-
-              // Get zone outline path
-              const outlinePath = getZoneOutlinePath(zone.cells);
-
-              return (
-                <g key={zone.id}>
-                  {/* Zone outline - thick continuous border */}
-                  <path
-                    d={outlinePath}
-                    fill="none"
-                    stroke={zone.color}
-                    strokeWidth={4}
-                    strokeLinecap="square"
-                    className="pointer-events-none"
-                  />
-                  
-                  {/* Zone Label with background */}
-                  <g transform={`translate(${centerX * CELL_SIZE + CELL_SIZE / 2}, ${centerY * CELL_SIZE + CELL_SIZE / 2})`}>
-                    <rect
-                      x={-zone.name.length * 3}
-                      y={-10}
-                      width={zone.name.length * 6}
-                      height={20}
-                      fill={zone.color}
-                      rx={3}
-                      className="pointer-events-none"
-                    />
-                    <text
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      fill="white"
-                      fontSize="11"
-                      fontWeight="bold"
-                      className="pointer-events-none select-none"
-                    >
-                      {zone.name}
-                    </text>
-                  </g>
-                </g>
-              );
-            })}
-
-            {/* Existing Camera Viewpoints (except currently selected) */}
-            {currentFloorViewpoints
-              .filter((v) => v.cameraId !== selectedCamera)
-              .map((viewpoint) => {
-                const cells = Array.from(viewpoint.cells).map((cell) => {
-                  const [x, y] = cell.split(",").map(Number);
-                  return { x, y };
-                });
-
-                // Calculate center for camera icon label
-                const centerX = cells.reduce((sum, cell) => sum + cell.x, 0) / cells.length;
-                const centerY = cells.reduce((sum, cell) => sum + cell.y, 0) / cells.length;
-
-                return (
-                  <g key={viewpoint.id}>
-                    {/* Camera FOV cells */}
-                    {cells.map(({ x, y }) => (
-                      <rect
-                        key={`${x},${y}`}
-                        x={x * CELL_SIZE}
-                        y={y * CELL_SIZE}
-                        width={CELL_SIZE}
-                        height={CELL_SIZE}
-                        fill={viewpoint.color}
-                        fillOpacity={0.7}
-                        stroke="none"
-                      />
-                    ))}
-                    
-                    {/* Camera Icon Label */}
-                    <g 
-                      transform={`translate(${centerX * CELL_SIZE + CELL_SIZE / 2}, ${centerY * CELL_SIZE + CELL_SIZE / 2})`}
-                      onMouseEnter={() => setHoveredCamera(viewpoint.cameraId)}
-                      onMouseLeave={() => setHoveredCamera(null)}
-                      className="cursor-pointer"
-                    >
-                      {/* Icon background circle */}
-                      <circle
-                        cx={0}
-                        cy={0}
-                        r={18}
-                        fill="white"
-                        stroke={viewpoint.color}
-                        strokeWidth={3}
-                      />
-                      {/* Camera icon */}
-                      <g transform="scale(1.5)" className="pointer-events-none">
-                        <rect x={-4} y={-2} width={8} height={4} fill={viewpoint.color} rx={0.5} />
-                        <rect x={-2} y={-4} width={4} height={2} fill={viewpoint.color} />
-                        <circle cx={1} cy={0} r={1.5} fill="white" />
-                      </g>
-                    </g>
-                  </g>
-                );
-              })}
-
-            {/* Grid Cells - Interactive */}
-            {Array.from({ length: GRID_SIZE }).map((_, y) =>
-              Array.from({ length: GRID_SIZE }).map((_, x) => {
-                const cellKey = getCellKey(x, y);
-                const isSelected = selectedCells.has(cellKey);
-
-                return (
-                  <rect
-                    key={cellKey}
-                    x={x * CELL_SIZE}
-                    y={y * CELL_SIZE}
-                    width={CELL_SIZE}
-                    height={CELL_SIZE}
-                    fill={isSelected ? "#FF6B6B" : "transparent"}
-                    fillOpacity={isSelected ? 0.6 : 0}
-                    stroke={isSelected ? "#FF0000" : "none"}
-                    strokeWidth={isSelected ? 2 : 0}
-                    className="cursor-pointer hover:fill-[#FF6B6B] hover:fill-opacity-30 transition-all"
-                    onClick={() => handleCellClick(x, y)}
-                  />
-                );
-              })
-            )}
-          </svg>
-        </div>
-
-        <div className="text-xs text-neutral-500 space-y-1">
-          <p>• Select a camera and mark which cells it can see</p>
-          <p>• Camera viewpoints can overlap (multiple cameras can see the same area)</p>
-          <p>• Zones are shown in the background as reference</p>
-        </div>
-      </div>
-
-      {/* Camera Viewpoints List */}
-      <div className="w-64 bg-white rounded border border-neutral-200 p-3 space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-600">
-          Camera Viewpoints ({currentFloorViewpoints.length})
-        </h4>
-
-        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-          {currentFloorViewpoints.map((viewpoint) => (
-            <div
-              key={viewpoint.id}
-              onClick={() => handleLoadViewpoint(viewpoint.cameraId)}
-              className={cn(
-                "p-2 rounded border cursor-pointer transition-all",
-                selectedCamera === viewpoint.cameraId
-                  ? "border-[#00775B] bg-[#00775B]/5"
-                  : "border-neutral-200 hover:border-neutral-300"
-              )}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <Camera className="w-3 h-3 text-neutral-600" />
-                  <span className="text-xs font-bold text-neutral-800">{viewpoint.cameraName}</span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete viewpoint for "${viewpoint.cameraName}"?`)) {
-                      onViewpointDelete(viewpoint.id);
-                      if (selectedCamera === viewpoint.cameraId) {
-                        setSelectedCamera("");
-                        setSelectedCells(new Set());
-                      }
-                    }
-                  }}
-                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+              <g key={`zone-${zone.id}`} style={{ pointerEvents: "none" }}>
+                <path
+                  d={path}
+                  fill="none"
+                  stroke={zone.color}
+                  strokeWidth="1.5"
+                  opacity="0.9"
+                />
+                <rect
+                  x={labelX - chipW / 2} y={labelY - chipH / 2}
+                  width={chipW} height={chipH}
+                  rx="3" ry="3"
+                  fill={zone.color}
+                  opacity="0.95"
+                />
+                <text
+                  x={labelX}
+                  y={labelY}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fill="white"
+                  fontSize="8"
+                  fontWeight="bold"
                 >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-              <div className="text-[10px] text-neutral-500">
-                {viewpoint.cells.size} cell{viewpoint.cells.size !== 1 ? 's' : ''} visible
+                  {zone.name}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Camera FOV cells + outlines + center icon */}
+          {floorCVs.map((cv) => {
+            const cellArr = Array.from(cv.cells);
+            const outline = getZoneOutlinePath(cv.cells, CELL_SIZE);
+            const centerX = cellArr.length > 0
+              ? (cellArr.reduce((s, k) => s + parseInt(k.split(",")[0]), 0) / cellArr.length + 0.5) * CELL_SIZE
+              : null;
+            const centerY = cellArr.length > 0
+              ? (cellArr.reduce((s, k) => s + parseInt(k.split(",")[1]), 0) / cellArr.length + 0.5) * CELL_SIZE
+              : null;
+            const iconSize = 16;
+            return (
+              <g key={`cv-group-${cv.id}`} style={{ pointerEvents: "none" }}>
+                {/* FOV fill */}
+                {cellArr.map((cellKey) => {
+                  const [cx, cy] = cellKey.split(",").map(Number);
+                  return (
+                    <rect
+                      key={`cv-${cv.id}-${cellKey}`}
+                      x={cx * CELL_SIZE} y={cy * CELL_SIZE}
+                      width={CELL_SIZE} height={CELL_SIZE}
+                      fill={cv.color}
+                      opacity={cv.id === selectedCVId ? 0.6 : 0.35}
+                    />
+                  );
+                })}
+                {/* FOV outline */}
+                {outline && (
+                  <path
+                    d={outline} fill="none"
+                    stroke={cv.color}
+                    strokeWidth={cv.id === selectedCVId ? 2.5 : 1.5}
+                  />
+                )}
+                {/* Camera icon at center for completed (non-selected) cameras */}
+                {centerX !== null && centerY !== null && cv.cells.size > 0 && cv.id !== selectedCVId && (
+                  <g transform={`translate(${centerX}, ${centerY}) scale(${iconSize / 24}) translate(-12, -12)`}>
+                    <path
+                      d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"
+                      fill={cv.color} stroke="white" strokeWidth="1.5"
+                    />
+                    <circle cx="12" cy="13" r="3" fill="white" />
+                  </g>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+      </CanvasContainer>
+
+      {/* Right panel */}
+      <div className="w-64 flex-shrink-0 border-l border-neutral-200 bg-white flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
+          {/* Assigned cameras */}
+          {floorCVs.length > 0 && (
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Assigned Cameras</div>
+              <div className="flex flex-col gap-1">
+                {floorCVs.map((cv) => (
+                  <div
+                    key={cv.id}
+                    onClick={() => setSelectedCVId(selectedCVId === cv.id ? null : cv.id)}
+                    className={cn(
+                      "flex items-center gap-2 px-2 py-2 rounded cursor-pointer border transition-colors",
+                      selectedCVId === cv.id ? "border-[#00775B] bg-green-50" : "border-transparent hover:bg-neutral-50",
+                    )}
+                  >
+                    <div className="w-5 h-5 rounded flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: cv.color }}>
+                      <Camera className="w-2.5 h-2.5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-neutral-800 truncate">{cv.cameraName}</div>
+                      <div className="text-[10px] text-neutral-400 font-medium">{cv.cells.size} cells</div>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeCv(cv.id); }}
+                      className="text-neutral-300 hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
+          )}
 
-        {currentFloorViewpoints.length === 0 && (
-          <div className="text-xs text-neutral-400 text-center py-8">
-            No camera viewpoints yet.<br />Select a camera to begin!
+          {/* Available cameras */}
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Available Cameras</div>
+            {unassignedCameras.length === 0 ? (
+              <div className="text-xs text-neutral-400 text-center py-3">All cameras assigned.</div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {unassignedCameras.map((cam) => (
+                  <div
+                    key={cam.id}
+                    className="flex items-center gap-2 px-2 py-2 rounded border border-neutral-100 hover:border-[#00775B] hover:bg-green-50 cursor-pointer transition-colors"
+                    onClick={() => addCamera(cam)}
+                  >
+                    <Camera className="w-3 h-3 text-neutral-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold text-neutral-700 truncate">{cam.name}</div>
+                      <div className="text-[10px] text-neutral-400">{cam.id}</div>
+                    </div>
+                    <Plus className="w-3 h-3 text-neutral-300" />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        )}
+
+          {activeCv && (
+            <div className="text-xs bg-neutral-50 rounded p-2 text-neutral-500 leading-relaxed">
+              Painting FOV for{" "}
+              <span className="font-semibold" style={{ color: activeCv.color }}>{activeCv.cameraName}</span>.
+              Click to paint · click painted to erase.
+            </div>
+          )}
+
+          {/* Next Floor button */}
+          {nextFloor && (
+            <button
+              onClick={onNextFloor}
+              className="w-full flex items-center justify-center gap-2 py-2 bg-[#00775B] hover:bg-[#005f48] text-white rounded text-xs font-bold uppercase tracking-wide transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+              Next: {nextFloor.name}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 };
 
-// Main Modal Component
+// ── Main Modal ─────────────────────────────────────────────────────────────
+
+const steps = [
+  { number: 1 as const, title: "Upload Floor Plans", icon: Upload },
+  { number: 2 as const, title: "Align + Set Scale", icon: Move },
+  { number: 3 as const, title: "Draw Zones", icon: Grid3x3 },
+  { number: 4 as const, title: "Cameras FOV", icon: Camera },
+];
+
+interface ZoneConfigurationModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+  onSave?: () => void;
+}
+
 export const ZoneConfigurationModal = ({
-  isOpen,
+  isOpen: isOpenProp,
   onClose,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-}) => {
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
-  const [currentFloor, setCurrentFloor] = useState<string>("L1");
+  onSave,
+}: ZoneConfigurationModalProps = {}) => {
+  const [isOpenInternal, setIsOpenInternal] = useState(false);
+  const isOpen = isOpenProp !== undefined ? isOpenProp : isOpenInternal;
+  const setIsOpen = (val: boolean) => {
+    setIsOpenInternal(val);
+    if (!val && onClose) onClose();
+  };
+
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const [floors, setFloors] = useState<Floor[]>([{ id: "floor-1", name: "Floor 1" }]);
+  const [currentFloor, setCurrentFloor] = useState<string>("floor-1");
   const [floorPlans, setFloorPlans] = useState<FloorPlan[]>([]);
+  const [alignRects, setAlignRects] = useState<{ [floorId: string]: AlignRect }>({});
+  const [scales, setScales] = useState<{ [floorId: string]: Scale | null }>({});
   const [zones, setZones] = useState<ZoneConfig[]>([]);
   const [cameraViewpoints, setCameraViewpoints] = useState<CameraViewpoint[]>([]);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
 
-  const currentFloorPlan = floorPlans.find((fp) => fp.floor === currentFloor);
+  const floorsWithPlans = floors.filter((f) => floorPlans.some((fp) => fp.floor === f.id));
+  const currentFloorPlan = floorPlans.find((fp) => fp.floor === currentFloor) ?? null;
+  const gd = getGridDims(currentFloorPlan);
 
-  const handleFloorPlanUpload = (imageUrl: string) => {
-    setFloorPlans([
-      ...floorPlans.filter((fp) => fp.floor !== currentFloor),
-      { floor: currentFloor, imageUrl },
-    ]);
+  const getDefaultAlignRect = (fp: FloorPlan): AlignRect => {
+    const d = getGridDims(fp);
+    return { x: 0, y: 0, width: d.canvasW, height: d.canvasH };
   };
 
-  const handleZoneCreate = (zoneData: Omit<ZoneConfig, "id">) => {
-    const newZone: ZoneConfig = {
-      ...zoneData,
-      id: `zone-${Date.now()}`,
-    };
-    setZones([...zones, newZone]);
-    setSelectedZone(newZone.id);
+  const currentAlignRect: AlignRect =
+    alignRects[currentFloor] ??
+    (currentFloorPlan
+      ? getDefaultAlignRect(currentFloorPlan)
+      : { x: 0, y: 0, width: gd.canvasW, height: gd.canvasH });
+
+  const handleFloorPlanUpload = (floorId: string, imageUrl: string, w: number, h: number) => {
+    const newFp: FloorPlan = { floor: floorId, imageUrl, naturalWidth: w, naturalHeight: h };
+    setFloorPlans((prev) => [...prev.filter((fp) => fp.floor !== floorId), newFp]);
+    const d = getGridDims(newFp);
+    setAlignRects((prev) => ({ ...prev, [floorId]: { x: 0, y: 0, width: d.canvasW, height: d.canvasH } }));
   };
 
-  const handleZoneUpdate = (zoneId: string, updates: Partial<ZoneConfig>) => {
-    setZones(zones.map((z) => (z.id === zoneId ? { ...z, ...updates } : z)));
+  const handleDeleteFloorPlan = (floorId: string) => {
+    setFloorPlans((prev) => prev.filter((fp) => fp.floor !== floorId));
+    setAlignRects((prev) => { const n = { ...prev }; delete n[floorId]; return n; });
+    setScales((prev) => { const n = { ...prev }; delete n[floorId]; return n; });
+    setZones((prev) => prev.filter((z) => z.floor !== floorId));
+    setCameraViewpoints((prev) => prev.filter((cv) => cv.floor !== floorId));
   };
 
-  const handleZoneDelete = (zoneId: string) => {
-    setZones(zones.filter((z) => z.id !== zoneId));
-    setSelectedZone(null);
+  const handleFloorsChange = (newFloors: Floor[]) => {
+    setFloors(newFloors);
+    if (!newFloors.find((f) => f.id === currentFloor) && newFloors.length > 0) {
+      setCurrentFloor(newFloors[0].id);
+    }
   };
 
-  const handleViewpointCreate = (viewpointData: Omit<CameraViewpoint, "id">) => {
-    const newViewpoint: CameraViewpoint = {
-      ...viewpointData,
-      id: `viewpoint-${Date.now()}`,
-    };
-    setCameraViewpoints([...cameraViewpoints, newViewpoint]);
+  const canGoNext = (): boolean => {
+    if (currentStep === 1) return floorsWithPlans.length > 0;
+    if (currentStep === 2) return floorsWithPlans.every((f) => scales[f.id] != null);
+    if (currentStep === 3) return floorsWithPlans.every((f) =>
+      zones.some((z) => z.floor === f.id && z.cells.size > 0)
+    );
+    return true;
   };
 
-  const handleViewpointUpdate = (id: string, updates: Partial<CameraViewpoint>) => {
-    setCameraViewpoints(cameraViewpoints.map((v) => (v.id === id ? { ...v, ...updates } : v)));
+  const getNextHint = (): string | null => {
+    if (currentStep === 1 && floorsWithPlans.length === 0)
+      return "Upload at least one floor plan to continue";
+    if (currentStep === 2) {
+      const missing = floorsWithPlans.filter((f) => !scales[f.id]);
+      if (missing.length > 0)
+        return `Set scale for: ${missing.map((f) => f.name).join(", ")}`;
+    }
+    if (currentStep === 3) {
+      const missing = floorsWithPlans.filter((f) =>
+        !zones.some((z) => z.floor === f.id && z.cells.size > 0)
+      );
+      if (missing.length > 0)
+        return `Draw at least one zone for: ${missing.map((f) => f.name).join(", ")}`;
+    }
+    return null;
   };
 
-  const handleViewpointDelete = (id: string) => {
-    setCameraViewpoints(cameraViewpoints.filter((v) => v.id !== id));
+  const handleNext = () => {
+    if (currentStep < 4 && canGoNext()) {
+      const nextStep = (currentStep + 1) as 1 | 2 | 3 | 4;
+      setCurrentStep(nextStep);
+      if (floorsWithPlans.length > 0) setCurrentFloor(floorsWithPlans[0].id);
+    }
   };
 
-  const canProceedToStep2 = currentFloorPlan !== undefined;
-  const canProceedToStep3 = zones.filter((z) => z.floor === currentFloor).length > 0;
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep((prev) => (prev - 1) as 1 | 2 | 3 | 4);
+      if (floorsWithPlans.length > 0) setCurrentFloor(floorsWithPlans[0].id);
+    }
+  };
 
-  const steps = [
-    { number: 1, title: "Upload Floor Plan", icon: Upload },
-    { number: 2, title: "Draw Zones", icon: Grid3x3 },
-    { number: 3, title: "Cameras Field of View", icon: Camera },
-  ];
+  const getNextFloor = (): Floor | null => {
+    const idx = floorsWithPlans.findIndex((f) => f.id === currentFloor);
+    if (idx >= 0 && idx < floorsWithPlans.length - 1) return floorsWithPlans[idx + 1];
+    return null;
+  };
+
+  const handleNextFloor = () => {
+    const next = getNextFloor();
+    if (next) setCurrentFloor(next.id);
+  };
+
+  const handleSave = () => {
+    console.log("Saving configuration:", { floors, floorPlans, alignRects, scales, zones, cameraViewpoints });
+    onSave?.();
+    setIsOpen(false);
+  };
+
+  const hint = getNextHint();
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={onClose}>
+    <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
+      {/* Only show trigger button when uncontrolled */}
+      {isOpenProp === undefined && (
+        <Dialog.Trigger asChild>
+          <button className="flex items-center gap-2 px-4 py-2 bg-[#00775B] text-white rounded-lg text-sm font-bold hover:bg-[#005f48] transition-colors shadow-sm">
+            <Layers className="w-4 h-4" />
+            Zone Configuration
+          </button>
+        </Dialog.Trigger>
+      )}
+
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 animate-in fade-in" />
-        <Dialog.Content className="fixed inset-4 md:inset-8 bg-neutral-100 rounded-lg shadow-2xl z-50 flex flex-col animate-in fade-in zoom-in-95">
+        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
+        <Dialog.Content className="fixed inset-4 z-50 bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-neutral-200 bg-white shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-200 flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#00775B] rounded">
-                <Settings className="w-5 h-5 text-white" />
+              <div className="w-8 h-8 bg-[#00775B] rounded-lg flex items-center justify-center flex-shrink-0">
+                <Layers className="w-4 h-4 text-white" />
               </div>
               <div>
-                <Dialog.Title asChild>
-                  <h2 className="text-lg font-bold text-neutral-800">Zone Configuration - {currentFloor}</h2>
-                </Dialog.Title>
-                <Dialog.Description asChild>
-                  <p className="text-xs text-neutral-500">Step {currentStep} of 3: {steps[currentStep - 1].title}</p>
-                </Dialog.Description>
+                <Dialog.Title className="font-bold text-neutral-900 text-sm">Zone Configuration</Dialog.Title>
+                <div className="text-xs text-neutral-400 font-medium">Step {currentStep} of {steps.length}</div>
               </div>
             </div>
 
-            {/* Floor Selector */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded border border-neutral-200">
-                <Layers className="w-4 h-4 text-neutral-600" />
-                <select
-                  value={currentFloor}
-                  onChange={(e) => setCurrentFloor(e.target.value)}
-                  className="text-sm font-bold text-neutral-700 bg-transparent border-none focus:outline-none cursor-pointer"
-                >
-                  {FLOORS.map((floor) => (
-                    <option key={floor} value={floor}>
-                      Floor {floor}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <Dialog.Close asChild>
-                <button className="p-2 hover:bg-neutral-100 rounded transition-colors">
-                  <X className="w-5 h-5 text-neutral-600" />
-                </button>
-              </Dialog.Close>
-            </div>
-          </div>
-
-          {/* Step Progress */}
-          <div className="flex items-center justify-center gap-2 p-4 bg-white border-b border-neutral-200">
-            {steps.map((step, index) => {
-              const StepIcon = step.icon;
-              const isActive = currentStep === step.number;
-              const isCompleted = currentStep > step.number;
-
-              return (
-                <div key={step.number} className="flex items-center">
-                  <div
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded transition-all",
-                      isActive && "bg-[#00775B] text-white",
-                      isCompleted && "bg-green-100 text-green-700",
-                      !isActive && !isCompleted && "bg-neutral-100 text-neutral-400"
+            {/* Step chips */}
+            <div className="flex items-center gap-1.5">
+              {steps.map((step, idx) => {
+                const Icon = step.icon;
+                const isDone = currentStep > step.number;
+                const isCurrent = currentStep === step.number;
+                return (
+                  <div key={step.number} className="flex items-center gap-1.5">
+                    <div
+                      className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wide transition-colors",
+                        isCurrent
+                          ? "bg-[#00775B] text-white"
+                          : isDone
+                          ? "bg-[#00775B]/15 text-[#00775B]"
+                          : "bg-neutral-100 text-neutral-400",
+                      )}
+                    >
+                      {isDone ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
+                      {step.title}
+                    </div>
+                    {idx < steps.length - 1 && (
+                      <ChevronRight className="w-3.5 h-3.5 text-neutral-300 flex-shrink-0" />
                     )}
-                  >
-                    {isCompleted ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      <StepIcon className="w-4 h-4" />
-                    )}
-                    <span className="text-xs font-bold">{step.title}</span>
                   </div>
-                  {index < steps.length - 1 && (
-                    <ChevronRight className="w-4 h-4 mx-1 text-neutral-300" />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+
+            <Dialog.Close className="text-neutral-400 hover:text-neutral-600 transition-colors ml-4 flex-shrink-0">
+              <X className="w-5 h-5" />
+            </Dialog.Close>
           </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-hidden flex flex-col">
+          {/* Floor selector (steps 2–4, only floors with plans) */}
+          {currentStep > 1 && floorsWithPlans.length > 0 && (
+            <div className="flex items-center gap-2 px-6 py-2 border-b border-neutral-100 flex-shrink-0 bg-neutral-50">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">Floor:</span>
+              {floorsWithPlans.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setCurrentFloor(f.id)}
+                  className={cn(
+                    "px-3 py-1 rounded text-xs font-bold border transition-colors",
+                    currentFloor === f.id
+                      ? "bg-[#00775B] text-white border-[#00775B]"
+                      : "bg-white text-neutral-500 border-neutral-200 hover:border-[#00775B]",
+                  )}
+                >
+                  {f.name}
+                  {currentStep === 2 && scales[f.id] && (
+                    <span className="ml-1.5 text-[8px] opacity-80">✓</span>
+                  )}
+                  {currentStep === 3 && zones.some(z => z.floor === f.id && z.cells.size > 0) && (
+                    <span className="ml-1.5 text-[8px] opacity-80">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Step content */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {currentStep === 1 && (
               <FloorPlanUpload
-                floor={currentFloor}
-                floorPlan={currentFloorPlan || null}
+                floors={floors}
+                onFloorsChange={handleFloorsChange}
+                floorPlans={floorPlans}
                 onFloorPlanUpload={handleFloorPlanUpload}
+                onDeleteFloorPlan={handleDeleteFloorPlan}
               />
             )}
 
-            {currentStep === 2 && (
-              <ZoneDrawingCanvas
-                zones={zones}
-                selectedZone={selectedZone}
-                onZoneCreate={handleZoneCreate}
-                onZoneSelect={setSelectedZone}
-                onZoneDelete={handleZoneDelete}
-                onZoneUpdate={handleZoneUpdate}
-                floor={currentFloor}
-                floorPlan={currentFloorPlan || null}
+            {currentStep === 2 && currentFloorPlan && (
+              <AlignAndScaleStep
+                key={currentFloor}
+                floorPlan={currentFloorPlan}
+                gd={gd}
+                alignRect={currentAlignRect}
+                onAlignRectChange={(r) => setAlignRects((prev) => ({ ...prev, [currentFloor]: r }))}
+                onScaleChange={(s) => setScales((prev) => ({ ...prev, [currentFloor]: s }))}
+                existingScale={scales[currentFloor] ?? null}
+                nextFloor={getNextFloor()}
+                onNextFloor={handleNextFloor}
               />
+            )}
+
+            {currentStep === 2 && !currentFloorPlan && (
+              <div className="flex-1 flex items-center justify-center text-neutral-400 text-sm">
+                No floor plan for this floor. Go back and upload one.
+              </div>
             )}
 
             {currentStep === 3 && (
+              <ZoneDrawingCanvas
+                key={currentFloor}
+                floorPlan={currentFloorPlan}
+                gd={gd}
+                alignRect={currentAlignRect}
+                zones={zones}
+                currentFloor={currentFloor}
+                onZonesChange={setZones}
+                selectedZone={selectedZone}
+                onSelectedZoneChange={setSelectedZone}
+                scale={scales[currentFloor] ?? null}
+                nextFloor={getNextFloor()}
+                onNextFloor={handleNextFloor}
+              />
+            )}
+
+            {currentStep === 4 && (
               <CameraViewpointCanvas
+                key={currentFloor}
+                floorPlan={currentFloorPlan}
+                gd={gd}
+                alignRect={currentAlignRect}
                 zones={zones}
                 cameraViewpoints={cameraViewpoints}
-                onViewpointCreate={handleViewpointCreate}
-                onViewpointUpdate={handleViewpointUpdate}
-                onViewpointDelete={handleViewpointDelete}
-                floor={currentFloor}
-                floorPlan={currentFloorPlan || null}
+                currentFloor={currentFloor}
+                onCameraViewpointsChange={setCameraViewpoints}
+                nextFloor={getNextFloor()}
+                onNextFloor={handleNextFloor}
               />
             )}
           </div>
 
-          {/* Footer Navigation */}
-          <div className="flex items-center justify-between p-4 border-t border-neutral-200 bg-white shrink-0">
+          {/* Footer */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-neutral-200 flex-shrink-0">
             <button
-              onClick={() => setCurrentStep(Math.max(1, currentStep - 1) as 1 | 2 | 3)}
+              onClick={handleBack}
               disabled={currentStep === 1}
-              className={cn(
-                "px-4 py-2 text-sm font-bold rounded transition-colors flex items-center gap-2",
-                currentStep === 1
-                  ? "bg-neutral-100 text-neutral-400 cursor-not-allowed"
-                  : "bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
-              )}
+              className="flex items-center gap-2 px-4 py-2 border border-neutral-200 rounded text-sm font-semibold text-neutral-600 hover:border-neutral-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
-              Previous
+              Back
             </button>
 
-            <div className="flex gap-2">
-              {currentStep < 3 ? (
+            {/* Progress dots */}
+            <div className="flex items-center gap-2">
+              {steps.map((step) => (
+                <div
+                  key={step.number}
+                  className={cn(
+                    "w-2 h-2 rounded-full transition-colors",
+                    currentStep === step.number
+                      ? "bg-[#00775B]"
+                      : currentStep > step.number
+                      ? "bg-[#00775B]/40"
+                      : "bg-neutral-200",
+                  )}
+                />
+              ))}
+            </div>
+
+            {currentStep < 4 ? (
+              <div className="flex flex-col items-end gap-1">
+                {hint && (
+                  <div className="text-[10px] text-amber-600 font-semibold max-w-48 text-right leading-tight">{hint}</div>
+                )}
                 <button
-                  onClick={() => {
-                    if (currentStep === 1 && !canProceedToStep2) {
-                      alert("Please upload a floor plan before proceeding!");
-                      return;
-                    }
-                    if (currentStep === 2 && !canProceedToStep3) {
-                      alert("Please create at least one zone before proceeding!");
-                      return;
-                    }
-                    setCurrentStep(Math.min(3, currentStep + 1) as 1 | 2 | 3);
-                  }}
-                  className="px-4 py-2 text-sm font-bold text-white bg-[#00775B] rounded hover:bg-[#009e78] transition-colors flex items-center gap-2"
+                  onClick={handleNext}
+                  disabled={!canGoNext()}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#00775B] text-white rounded text-sm font-bold hover:bg-[#005f48] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Next
                   <ChevronRight className="w-4 h-4" />
                 </button>
-              ) : (
-                <button
-                  onClick={() => {
-                    alert("Configuration saved successfully!");
-                    onClose();
-                  }}
-                  className="px-4 py-2 text-sm font-bold text-white bg-[#00775B] rounded hover:bg-[#009e78] transition-colors flex items-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  Save & Close
-                </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button
+                onClick={handleSave}
+                className="flex items-center gap-2 px-4 py-2 bg-[#00775B] text-white rounded text-sm font-bold hover:bg-[#005f48] transition-colors"
+              >
+                <Save className="w-4 h-4" />
+                Save Configuration
+              </button>
+            )}
           </div>
         </Dialog.Content>
       </Dialog.Portal>
