@@ -5,7 +5,7 @@ import { IncidentCard } from "@/app/components/dashboard/IncidentCard";
 import { IncidentDetailModal } from "@/app/components/dashboard/IncidentDetailModal";
 import { Button } from "@/app/components/ui/Button";
 import { GridBackground } from "@/app/components/layout/GridBackground";
-import { Bell, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Clock, Filter, LayoutGrid, List, Check, User, Video, MapPin, X, ChevronDown, Info, Trash2, Copy, ImageIcon, Activity, ExternalLink, Search, ShieldCheck, Hexagon, Zap, Shield } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Clock, Filter, LayoutGrid, List, Check, User, Video, MapPin, X, ChevronDown, Info, Trash2, Copy, ImageIcon, Activity, ExternalLink, Search, ShieldCheck, Hexagon, Zap, Shield, PanelLeft, Command } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import { Checkbox } from "@/app/components/ui/Checkbox";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
@@ -17,6 +17,7 @@ import { VolumeAnalytics } from "@/app/components/pages/VolumeAnalytics";
 import { IncidentAnalytics } from "@/app/components/pages/IncidentAnalytics";
 import { ZoneAnalytics } from "@/app/components/pages/ZoneAnalytics";
 import { QualityAnalytics } from "@/app/components/pages/QualityAnalytics";
+import { IdentityAnalytics } from "@/app/components/pages/IdentityAnalytics";
 import { FacialRecognition } from "@/app/components/pages/FacialRecognition";
 import { LicensePlates } from "@/app/components/pages/LicensePlates";
 import { Cameras } from "@/app/components/pages/Cameras";
@@ -354,120 +355,162 @@ export default function App() {
   const isIndeterminate = selectedIncidents.size > 0 && selectedIncidents.size < filteredIncidents.length;
   const criticalCount = ALL_INCIDENTS.filter(i => i.severity === "critical").length;
 
+  // ── Live clock ──────────────────────────────────────────────────────────────
+  const [clockTime, setClockTime] = useState(() =>
+    new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setClockTime(new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── Page title map ───────────────────────────────────────────────────────────
+  const PAGE_TITLES: Record<string, string> = {
+    dashboard:            "Dashboard",
+    volume:               "Volume Analytics",
+    incident:             "Incident Analytics",
+    zone:                 "Zone Analytics",
+    quality:              "Quality Analytics",
+    identity:             "Identity Analytics",
+    "facial-recognition": "Facial Recognition",
+    "license-plates":     "License Plates",
+    cameras:              "Cameras",
+    metrics:              "Metrics & Rules",
+    compliance:           "Compliance",
+  };
+
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-neutral-900 relative overflow-hidden">
       <Sidebar activePage={activePage} onPageChange={setActivePage} />
       
       <div className={cn("flex-1 lg:pl-56 relative z-10 w-full min-w-0 transition-all duration-300 h-full overflow-y-auto overflow-x-hidden", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
-        <header className={cn("sticky top-0 z-30 flex h-16 items-center justify-between bg-[#021d18] px-6 shadow-sm border-b border-[#00775B]/20 text-white transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
-          <div className="flex items-center gap-6">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2">
-                <h1 className="text-base font-bold tracking-wide text-white drop-shadow-sm">Matrice AI Analytics</h1>
-                <div className="px-[6px] py-0.5 rounded-[2px] bg-red-600 text-white text-[10px] font-bold uppercase tracking-[0.5px] leading-[12px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] animate-pulse">
-                  {criticalCount} Critical
-                </div>
-              </div>
-              <p className="text-[10px] font-bold text-white/60 uppercase tracking-widest">Real-Time Security Monitoring</p>
-            </div>
-            <div className="hidden xl:block">
-              <Legend variant="dark" />
-            </div>
+        <header className={cn("sticky top-0 z-30 flex h-12 items-center justify-between bg-[#0d1f1b] px-4 border-b border-white/8 text-white transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
+          {/* ── Left: toggle + page title ── */}
+          <div className="flex items-center gap-3">
+            <button className="p-1.5 rounded-md text-white/50 hover:text-white hover:bg-white/8 transition-colors">
+              <PanelLeft className="w-4 h-4" />
+            </button>
+            <div className="w-px h-4 bg-white/10" />
+            <span className="text-sm font-semibold text-white/90 tracking-tight">
+              {PAGE_TITLES[activePage] ?? "Dashboard"}
+            </span>
           </div>
 
-          <div className="flex items-center gap-4 relative">
+          {/* ── Right: actions ── */}
+          <div className="flex items-center gap-2">
 
+            {/* LIVE pill */}
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#00775B] rounded-full text-white text-xs font-semibold shadow-md shadow-[#00775B]/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              LIVE
+            </div>
 
-             <div className="relative">
-                <Button 
-                   variant="outline" 
-                   size="sm" 
-                   onClick={() => setIsGlobalFilterOpen(!isGlobalFilterOpen)}
-                   className={cn("hidden md:flex h-8 text-[11px] font-medium bg-white text-black border-transparent hover:bg-neutral-100 items-center gap-2 relative", isGlobalFilterOpen && "bg-neutral-100 border-neutral-200 z-50")}
-                >
-                   <Filter className="w-3.5 h-3.5" />
-                   Global Filters
-                   {activeFilterCount > 0 && (
-                      <div className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#00775B] text-white text-[9px] font-bold shadow-sm z-10 border border-white">
-                         {activeFilterCount}
-                      </div>
-                   )}
-                </Button>
-
-                {isGlobalFilterOpen && (
-                   <>
-                      <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[1px]" onClick={() => setIsGlobalFilterOpen(false)} />
-                      <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-md shadow-xl border border-neutral-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                         <div className="flex border-b border-neutral-100">
-                            <button className={cn("flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors", globalFilterType === "project" ? "text-[#00775B] bg-[#00775B]/5" : "text-neutral-500 hover:bg-neutral-50")} onClick={() => { setGlobalFilterType("project"); setGlobalFilterQuery(""); }}>Project &gt; Pipeline</button>
-                            <div className="w-[1px] bg-neutral-100" />
-                            <button className={cn("flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors", globalFilterType === "camera" ? "text-[#00775B] bg-[#00775B]/5" : "text-neutral-500 hover:bg-neutral-50")} onClick={() => { setGlobalFilterType("camera"); setGlobalFilterQuery(""); }}>Camera Group</button>
-                         </div>
-                         <div className="p-3 space-y-3">
-                            <h3 className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider">{globalFilterType === "camera" ? "Select Camera Groups" : (draftProject ? "Select a Pipeline" : "Select a Project")}</h3>
-                            <div className="relative">
-                               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
-                               <input type="text" placeholder={globalFilterType === "camera" ? "Search camera groups..." : (draftProject ? `Search pipelines in project...` : "Search projects...")} className="w-full h-8 pl-8 pr-3 text-xs bg-neutral-50 border border-neutral-200 rounded-[2px] focus:border-[#00775B] focus:ring-1 focus:ring-[#00775B] outline-none transition-all placeholder:text-neutral-400 text-neutral-900" value={globalFilterQuery} onChange={(e) => setGlobalFilterQuery(e.target.value)} />
-                            </div>
-                            {globalFilterType === "project" && draftProject && (
-                               <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
-                                  <button onClick={() => { setDraftProject(null); setDraftPipeline(null); setGlobalFilterQuery(""); }} className="p-1 rounded hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900"><ChevronLeft className="w-3.5 h-3.5" /></button>
-                                  <span className="text-xs font-bold text-neutral-900 truncate"><span className="text-neutral-500 font-normal">Project -</span> {draftProject}</span>
-                               </div>
-                            )}
-                            <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
-                               {filteredGlobalOptions.length > 0 ? (
-                                  filteredGlobalOptions.map(opt => {
-                                    const isSelected = globalFilterType === "camera" ? draftCameraGroups.has(opt) : (draftProject ? draftPipeline === opt : false);
-                                    return (
-                                       <div key={opt} className="flex items-center gap-2 px-2 py-1.5 hover:bg-neutral-50 rounded-[2px] cursor-pointer group" onClick={() => {
-                                            if (globalFilterType === "camera") {
-                                               const newSet = new Set(draftCameraGroups);
-                                               if (newSet.has(opt)) newSet.delete(opt);
-                                               else newSet.add(opt);
-                                               setDraftCameraGroups(newSet);
-                                            } else {
-                                               if (draftProject) { setDraftPipeline(isSelected ? null : opt); } else { setDraftProject(opt); setGlobalFilterQuery(""); }
-                                            }
-                                         }}>
-                                          {globalFilterType === "camera" && <Checkbox checked={isSelected} className="data-[state=checked]:bg-[#00775B] data-[state=checked]:border-[#00775B] w-3.5 h-3.5" />}
-                                          {globalFilterType === "project" && draftProject && (
-                                             <div className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-all duration-200", isSelected ? "border-[#00775B]" : "border-neutral-300")}>{isSelected && <div className="w-2 h-2 rounded-full bg-[#00775B]" />}</div>
-                                          )}
-                                          <span className={cn("text-xs font-medium text-neutral-700 group-hover:text-neutral-900 flex-1", isSelected && "text-[#00775B] font-bold")}>{opt}</span>
-                                          {globalFilterType === "project" && !draftProject && <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />}
-                                       </div>
-                                    );
-                                  })
-                               ) : (<p className="text-center py-4 text-xs text-neutral-400 italic">No matches found</p>)}
-                            </div>
-                         </div>
-                         <div className="p-3 border-t border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
-                            <button className="text-[10px] font-bold text-neutral-500 hover:text-neutral-800 uppercase tracking-wide hover:underline" onClick={clearDraftFilters}>Clear All</button>
-                            <Button size="sm" className="h-7 text-[10px] bg-[#00775B] text-white hover:bg-[#00624b]" onClick={applyGlobalFilters}>Apply Filters</Button>
-                         </div>
-                      </div>
-                   </>
+            {/* Global Filter */}
+            <div className="relative">
+              <button
+                onClick={() => setIsGlobalFilterOpen(!isGlobalFilterOpen)}
+                className={cn(
+                  "hidden md:flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium text-white/70 hover:text-white hover:bg-white/8 border border-white/10 transition-all",
+                  isGlobalFilterOpen && "bg-white/10 text-white z-50"
                 )}
-             </div>
+              >
+                <Filter className="w-3.5 h-3.5" />
+                Global Filter
+                <ChevronDown className="w-3 h-3 opacity-60" />
+                {activeFilterCount > 0 && (
+                  <div className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-[#00775B] text-white text-[9px] font-bold border border-[#021d18]">
+                    {activeFilterCount}
+                  </div>
+                )}
+              </button>
 
-             <div className="hidden lg:block mr-2">
-                <PersonaSwitcher activePersona={activePersona} onPersonaChange={setActivePersona} />
-             </div>
+              {isGlobalFilterOpen && (
+                <>
+                  <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setIsGlobalFilterOpen(false)} />
+                  <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-neutral-100 z-50 overflow-hidden">
+                    <div className="flex border-b border-neutral-100">
+                      <button className={cn("flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors", globalFilterType === "project" ? "text-[#00775B] bg-[#00775B]/5" : "text-neutral-500 hover:bg-neutral-50")} onClick={() => { setGlobalFilterType("project"); setGlobalFilterQuery(""); }}>Project › Pipeline</button>
+                      <div className="w-px bg-neutral-100" />
+                      <button className={cn("flex-1 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors", globalFilterType === "camera" ? "text-[#00775B] bg-[#00775B]/5" : "text-neutral-500 hover:bg-neutral-50")} onClick={() => { setGlobalFilterType("camera"); setGlobalFilterQuery(""); }}>Camera Group</button>
+                    </div>
+                    <div className="p-3 space-y-3">
+                      <h3 className="text-[10px] font-bold uppercase text-neutral-500 tracking-wider">{globalFilterType === "camera" ? "Select Camera Groups" : (draftProject ? "Select a Pipeline" : "Select a Project")}</h3>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-neutral-400" />
+                        <input type="text" placeholder={globalFilterType === "camera" ? "Search camera groups..." : (draftProject ? "Search pipelines..." : "Search projects...")} className="w-full h-8 pl-8 pr-3 text-xs bg-neutral-50 border border-neutral-200 rounded-lg focus:border-[#00775B] focus:ring-1 focus:ring-[#00775B] outline-none transition-all placeholder:text-neutral-400 text-neutral-900" value={globalFilterQuery} onChange={(e) => setGlobalFilterQuery(e.target.value)} />
+                      </div>
+                      {globalFilterType === "project" && draftProject && (
+                        <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
+                          <button onClick={() => { setDraftProject(null); setDraftPipeline(null); setGlobalFilterQuery(""); }} className="p-1 rounded hover:bg-neutral-100 text-neutral-500 hover:text-neutral-900"><ChevronLeft className="w-3.5 h-3.5" /></button>
+                          <span className="text-xs font-bold text-neutral-900 truncate"><span className="text-neutral-500 font-normal">Project –</span> {draftProject}</span>
+                        </div>
+                      )}
+                      <div className="max-h-48 overflow-y-auto custom-scrollbar space-y-1">
+                        {filteredGlobalOptions.length > 0 ? filteredGlobalOptions.map(opt => {
+                          const isSelected = globalFilterType === "camera" ? draftCameraGroups.has(opt) : (draftProject ? draftPipeline === opt : false);
+                          return (
+                            <div key={opt} className="flex items-center gap-2 px-2 py-1.5 hover:bg-neutral-50 rounded-lg cursor-pointer group" onClick={() => {
+                              if (globalFilterType === "camera") {
+                                const newSet = new Set(draftCameraGroups);
+                                if (newSet.has(opt)) newSet.delete(opt); else newSet.add(opt);
+                                setDraftCameraGroups(newSet);
+                              } else {
+                                if (draftProject) { setDraftPipeline(isSelected ? null : opt); } else { setDraftProject(opt); setGlobalFilterQuery(""); }
+                              }
+                            }}>
+                              {globalFilterType === "camera" && <Checkbox checked={isSelected} className="data-[state=checked]:bg-[#00775B] data-[state=checked]:border-[#00775B] w-3.5 h-3.5" />}
+                              {globalFilterType === "project" && draftProject && (
+                                <div className={cn("w-3.5 h-3.5 rounded-full border flex items-center justify-center", isSelected ? "border-[#00775B]" : "border-neutral-300")}>{isSelected && <div className="w-2 h-2 rounded-full bg-[#00775B]" />}</div>
+                              )}
+                              <span className={cn("text-xs font-medium text-neutral-700 group-hover:text-neutral-900 flex-1", isSelected && "text-[#00775B] font-bold")}>{opt}</span>
+                              {globalFilterType === "project" && !draftProject && <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />}
+                            </div>
+                          );
+                        }) : <p className="text-center py-4 text-xs text-neutral-400 italic">No matches found</p>}
+                      </div>
+                    </div>
+                    <div className="p-3 border-t border-neutral-100 bg-neutral-50/50 flex justify-between items-center">
+                      <button className="text-[10px] font-bold text-neutral-500 hover:text-neutral-800 uppercase tracking-wide hover:underline" onClick={clearDraftFilters}>Clear All</button>
+                      <Button size="sm" className="h-7 text-[10px] bg-[#00775B] text-white hover:bg-[#00624b] rounded-lg" onClick={applyGlobalFilters}>Apply</Button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
 
-             <div className="flex items-center gap-[4px] px-[6px] py-0.5 bg-white rounded-[2px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.1)] border border-transparent">
-                <div className="w-2 h-2 rounded-full bg-[#00775B] animate-pulse shadow-[0_0_4px_var(--primary-main)]" />
-                <span className="text-[10px] font-bold text-black uppercase tracking-[0.5px] leading-[12px]">Live</span>
-             </div>
-             
-             <div className="h-8 w-8 flex items-center justify-center rounded-[2px] bg-white shadow-sm text-neutral-900 hover:bg-neutral-100 cursor-pointer transition-colors relative">
-               <Bell className="w-4 h-4" />
-               <div className="absolute top-1.5 right-2 w-1.5 h-1.5 bg-red-500 rounded-full border border-white" />
-             </div>
+            {/* Live clock */}
+            <div className="hidden md:flex items-center gap-1.5 h-8 px-3 rounded-lg border border-white/10 text-xs font-mono text-white/60">
+              <Clock className="w-3.5 h-3.5 text-white/30" />
+              {clockTime}
+            </div>
 
-             <div className="h-8 w-8 flex items-center justify-center rounded-[2px] bg-neutral-200 text-neutral-600 hover:bg-neutral-300 cursor-pointer transition-colors shadow-sm overflow-hidden border border-neutral-300/50" title="Go to Profile">
-                <User className="w-4 h-4" />
-             </div>
+            {/* Persona switcher */}
+            <div className="hidden lg:block">
+              <PersonaSwitcher activePersona={activePersona} onPersonaChange={setActivePersona} />
+            </div>
+
+            {/* Search */}
+            <div className="hidden lg:flex items-center gap-2 h-8 px-3 rounded-lg border border-white/10 text-xs text-white/40 bg-white/5 hover:bg-white/8 cursor-pointer transition-colors min-w-[140px]">
+              <Search className="w-3.5 h-3.5 shrink-0" />
+              <span className="flex-1">Search</span>
+              <div className="flex items-center gap-0.5 opacity-60">
+                <kbd className="text-[10px] font-mono px-1 py-0.5 rounded border border-white/20 bg-white/10">⌘</kbd>
+                <kbd className="text-[10px] font-mono px-1 py-0.5 rounded border border-white/20 bg-white/10">K</kbd>
+              </div>
+            </div>
+
+            {/* Bell */}
+            <button className="relative h-8 w-8 flex items-center justify-center rounded-lg text-white/50 hover:text-white hover:bg-white/8 border border-white/10 transition-colors">
+              <Bell className="w-4 h-4" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full border border-[#021d18]" />
+            </button>
+
+            {/* User avatar */}
+            <button className="h-8 w-8 rounded-full bg-[#00775B] flex items-center justify-center text-white text-xs font-bold shadow-md hover:bg-[#006649] transition-colors">
+              AU
+            </button>
           </div>
         </header>
 
@@ -483,6 +526,7 @@ export default function App() {
             {activePage === "incident" && <IncidentAnalytics persona={activePersona} />}
             {activePage === "zone" && <ZoneAnalytics persona={activePersona} />}
             {activePage === "quality" && <QualityAnalytics persona={activePersona} />}
+            {activePage === "identity" && <IdentityAnalytics persona={activePersona} />}
             {activePage === "facial-recognition" && <FacialRecognition />}
             {activePage === "license-plates" && <LicensePlates />}
             {activePage === "cameras" && <Cameras />}

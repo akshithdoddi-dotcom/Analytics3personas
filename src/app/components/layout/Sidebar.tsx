@@ -1,8 +1,8 @@
 import { cn } from "@/app/lib/utils";
-import { LayoutDashboard, AlertTriangle, Users, MapPin, Activity, Settings, ScanFace, CarFront, Video, Ruler, ClipboardCheck } from "lucide-react";
+import { LayoutDashboard, AlertTriangle, Users, MapPin, Activity, Settings, ScanFace, CarFront, Video, Ruler, ClipboardCheck, Fingerprint } from "lucide-react";
 import Group17 from "../../../imports/Group17";
 
-export type Page = "dashboard" | "volume" | "incident" | "zone" | "quality" | "facial-recognition" | "license-plates" | "cameras" | "metrics" | "compliance";
+export type Page = "dashboard" | "volume" | "incident" | "zone" | "quality" | "identity" | "facial-recognition" | "license-plates" | "cameras" | "metrics" | "compliance";
 
 interface SidebarProps {
   activePage: Page;
@@ -15,6 +15,7 @@ const menuItems = [
   { id: "incident", icon: AlertTriangle, label: "Incident Analytics", badge: 3 },
   { id: "zone", icon: MapPin, label: "Zone Analytics", badge: 0 },
   { id: "quality", icon: Activity, label: "Quality Analytics", badge: 0 },
+  { id: "identity", icon: Fingerprint, label: "Identity Analytics", badge: 0 },
   { id: "facial-recognition", icon: ScanFace, label: "Facial Recognition", badge: 0 },
   { id: "license-plates", icon: CarFront, label: "License Plates", badge: 0 },
   { id: "cameras", icon: Video, label: "Cameras", badge: 0 },
