@@ -259,10 +259,9 @@ export const EntityDetailPanel = ({
 
       {/* ── Hero: Entity summary + evidence media ── */}
       <div className="bg-white border-b border-neutral-100 px-5 py-5">
-        <div className="flex gap-5 items-start">
+        <div className="space-y-5">
 
-          {/* Left: identity info */}
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-[18px] font-black text-neutral-900 leading-none">{entity.displayName}</h3>
               <MembershipBadge membership={entity.listMembership} />
@@ -317,8 +316,7 @@ export const EntityDetailPanel = ({
             </div>
           </div>
 
-          {/* Right: evidence carousel */}
-          <div className="shrink-0 w-48 flex flex-col gap-2.5">
+          <div className="grid gap-3 lg:grid-cols-[192px,1fr]">
             <IdentityEvidenceMedia
               kind={isLPR ? "PLATE" : "FACE"}
               seed={currentEvidence.seed}
@@ -329,10 +327,9 @@ export const EntityDetailPanel = ({
               plateText={currentEvidence.plate ?? entity.plateText}
               size="lg"
               live
-              className="h-44 w-full"
+              className="h-44 w-full max-w-[192px]"
             />
-            {/* Thumbnail strip */}
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 lg:grid-cols-4">
               {evidence.map((item, index) => (
                 <button
                   key={item.id}

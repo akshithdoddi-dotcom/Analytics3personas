@@ -105,10 +105,6 @@ export const IdentityHeader = ({
                   {terminology.appLabel}
                 </p>
               </div>
-
-              <div className="rounded-full border border-neutral-200 bg-white px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-neutral-500 w-fit">
-                {activeApp.siteLabel}
-              </div>
             </div>
           </div>
 
