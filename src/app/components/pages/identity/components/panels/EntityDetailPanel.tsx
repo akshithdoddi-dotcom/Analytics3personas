@@ -86,6 +86,13 @@ const MOCK_UNKNOWN_ENTITY = {
     bounding_box: [380, 92, 180, 240],
     frame_number: "22,810",
   },
+  // Multi-location captures
+  captures: [
+    { id: 1, zone: "South Entrance", camera: "CAM-SE-01", time: "09:13", confidence: 64, seed: "88a" },
+    { id: 2, zone: "Main Lobby",     camera: "CAM-LB-01", time: "08:58", confidence: 61, seed: "88b" },
+    { id: 3, zone: "Service Ramp",   camera: "CAM-SR-01", time: "08:41", confidence: 59, seed: "88c" },
+    { id: 4, zone: "South Entrance", camera: "CAM-SE-01", time: "Yesterday", confidence: 67, seed: "88d" },
+  ],
   linked_alerts: [
     { id: "evt_unk_002", name: "UNKNOWN AT ENTRY", severity: "MEDIUM" as const, timestamp: "09:13:55", status: "ACTIVE" as const },
   ],
@@ -113,13 +120,12 @@ const AlertBadge = ({ severity, label }: { severity: string; label: string }) =>
     LOW:      "bg-[#E5F0FF] text-[#2B7FFF] border border-[#2B7FFF]/20",
   };
   return (
-    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full", styles[severity] ?? styles.LOW)}>
+    <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-[2px]", styles[severity] ?? styles.LOW)}>
       {label}
     </span>
   );
 };
 
-// ─── ListMembership Badge ─────────────────────────────────────────────────────
 const MembershipBadge = ({ membership }: { membership: string }) => {
   const map: Record<string, { bg: string; text: string; icon: React.ElementType; label: string }> = {
     WHITELIST: { bg: "bg-[#E5FFEF] border border-[#00A63E]/20", text: "text-[#00A63E]", icon: CheckCircle2, label: "Whitelist" },
@@ -130,12 +136,76 @@ const MembershipBadge = ({ membership }: { membership: string }) => {
   const cfg = map[membership] ?? map.UNKNOWN;
   const Icon = cfg.icon;
   return (
-    <span className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold", cfg.bg, cfg.text)}>
+    <span className={cn("inline-flex items-center gap-1 px-2 py-1 rounded-[2px] text-xs font-bold", cfg.bg, cfg.text)}>
       <Icon className="w-3.5 h-3.5" />
       {cfg.label}
     </span>
   );
 };
+
+// ─── Surveillance face capture with green bounding box ────────────────────────
+const SurveillanceCapture = ({
+  seed, confidence, zone, camera, time, large = false
+}: {
+  seed: string; confidence: number; zone?: string; camera?: string; time?: string; large?: boolean;
+}) => (
+  <div className={cn(
+    "relative rounded-[4px] overflow-hidden bg-neutral-950 shrink-0",
+    large ? "w-[148px] h-[148px]" : "w-full"
+  )}>
+    <img
+      src={`https://i.pravatar.cc/${large ? 148 : 160}?u=${seed}`}
+      alt=""
+      className="w-full h-full object-cover opacity-85"
+      style={{ filter: "contrast(1.05) brightness(0.95)" }}
+      onError={e => { e.currentTarget.style.display = "none"; }}
+    />
+    {/* Scan overlay */}
+    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00FF41]/3 to-black/40 pointer-events-none" />
+    {/* Bounding box */}
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        left: "20%", top: "12%", width: "60%", height: "58%",
+        border: "1.5px solid #00FF41",
+        boxShadow: "0 0 8px rgba(0,255,65,0.4)",
+      }}
+    />
+    {/* Corner brackets */}
+    <div className="absolute pointer-events-none"
+      style={{ left: "20%", top: "12%", width: 8, height: 8, borderTop: "2px solid #00FF41", borderLeft: "2px solid #00FF41" }} />
+    <div className="absolute pointer-events-none"
+      style={{ right: "20%", top: "12%", width: 8, height: 8, borderTop: "2px solid #00FF41", borderRight: "2px solid #00FF41" }} />
+    <div className="absolute pointer-events-none"
+      style={{ left: "20%", bottom: "30%", width: 8, height: 8, borderBottom: "2px solid #00FF41", borderLeft: "2px solid #00FF41" }} />
+    <div className="absolute pointer-events-none"
+      style={{ right: "20%", bottom: "30%", width: 8, height: 8, borderBottom: "2px solid #00FF41", borderRight: "2px solid #00FF41" }} />
+    {/* Confidence label at bounding box top */}
+    <div
+      className="absolute bg-black/80 text-[7px] font-data font-bold text-[#00FF41] px-1 py-px pointer-events-none"
+      style={{ left: "20%", top: "calc(12% - 14px)" }}
+    >
+      FACE · {confidence}%
+    </div>
+    {/* Bottom metadata overlay */}
+    {(zone || time) && (
+      <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1.5 py-1">
+        {zone && <div className="text-[8px] font-bold text-white leading-tight">{zone}</div>}
+        <div className="flex items-center justify-between">
+          {camera && <span className="text-[7px] text-white/60 font-data">{camera}</span>}
+          {time && <span className="text-[7px] text-[#00FF41] font-data font-bold">{time}</span>}
+        </div>
+      </div>
+    )}
+    {/* Live indicator */}
+    {large && (
+      <div className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-black/70 rounded-[2px] px-1 py-0.5">
+        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+        <span className="text-[7px] font-bold text-white font-data">LIVE</span>
+      </div>
+    )}
+  </div>
+);
 
 // ─── Main Panel ───────────────────────────────────────────────────────────────
 interface Props {
@@ -152,34 +222,37 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
   const isUnknown = entity.match_status === "UNMATCHED";
 
   const todaySightings = isMatched
-    ? (MOCK_MATCHED_ENTITY.sighting_history.today.slice(0, showOlderToday ? undefined : 3))
+    ? MOCK_MATCHED_ENTITY.sighting_history.today.slice(0, showOlderToday ? undefined : 3)
     : [];
 
   return (
-    <SlidePanel
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Entity Detail"
-      subtitle={entity.display_name}
-    >
-      {/* ── Hero / Header ────────────────────────────────────────────────── */}
+    <SlidePanel isOpen={isOpen} onClose={onClose} title="Entity Detail" subtitle={entity.display_name}>
+
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
       <div className="px-6 py-5 border-b border-neutral-100">
         <div className="flex items-start gap-4">
-          {/* Avatar */}
-          <div className={cn(
-            "w-16 h-16 rounded-xl flex items-center justify-center text-xl font-black shrink-0 border-2",
-            isUnknown
-              ? "bg-neutral-100 border-dashed border-neutral-300 text-neutral-400"
-              : entity.list_membership === "BLACKLIST"
-              ? "bg-[#FFE5E7] border-[#E7000B]/40 text-[#E7000B]"
-              : "bg-[#E5FFF9] border-[#00775B]/30 text-[#00775B]"
-          )}>
-            {entity.initials}
-          </div>
+
+          {/* Avatar — face capture for unknowns, initials for matched */}
+          {isUnknown ? (
+            <SurveillanceCapture
+              seed="88"
+              confidence={MOCK_UNKNOWN_ENTITY.last_detection.detection_confidence}
+              large
+            />
+          ) : (
+            <div className={cn(
+              "w-16 h-16 rounded-[4px] flex items-center justify-center text-xl font-black shrink-0 border",
+              entity.list_membership === "BLACKLIST"
+                ? "bg-[#FFE5E7] border-[#E7000B]/30 text-[#E7000B]"
+                : "bg-[#E5FFF9] border-[#00775B]/20 text-[#00775B]"
+            )}>
+              {entity.initials}
+            </div>
+          )}
 
           {/* Identity info */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
               <div>
                 <h3 className="text-base font-bold text-neutral-900 leading-tight">{entity.display_name}</h3>
                 {isMatched && (
@@ -193,14 +266,23 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
 
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
               <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5" />
-                {entity.last_detection.timestamp}
+                <Clock className="w-3 h-3" />{entity.last_detection.timestamp}
               </span>
               <span className="flex items-center gap-1">
-                <Camera className="w-3.5 h-3.5" />
-                {entity.last_detection.camera_label}
+                <Camera className="w-3 h-3" />{entity.last_detection.camera_label}
               </span>
             </div>
+
+            {isUnknown && (
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <span className="bg-orange-100 text-orange-700 text-[9px] font-black px-2 py-0.5 rounded-[2px] border border-orange-200 uppercase">
+                  RECURRING
+                </span>
+                <span className="text-[10px] text-neutral-500">
+                  {MOCK_UNKNOWN_ENTITY.appearance_summary.total_appearances} appearances across {MOCK_UNKNOWN_ENTITY.appearance_summary.days_seen} days
+                </span>
+              </div>
+            )}
 
             {isMatched && (
               <div className="mt-1.5 flex items-center gap-1.5">
@@ -211,14 +293,6 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
                 <span className="text-[10px] text-neutral-400">match confidence</span>
               </div>
             )}
-            {isUnknown && (
-              <div className="mt-1.5 flex items-center gap-2">
-                <span className="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-200">
-                  ▲ RECURRING
-                </span>
-                <span className="text-[10px] text-neutral-500">Seen 4 days this week</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -226,27 +300,66 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             onClick={onViewJourney}
-            className="flex items-center gap-1.5 h-8 px-3 rounded bg-[#00775B] text-white text-xs font-semibold hover:bg-[#004E3D] transition-colors"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-[4px] bg-[#00775B] text-white text-xs font-semibold hover:bg-[#004E3D] transition-colors"
           >
             <Waypoints className="w-3.5 h-3.5" />
             View Full Journey
           </button>
           {isUnknown && (
-            <button className="flex items-center gap-1.5 h-8 px-3 rounded border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:border-[#00775B] hover:text-[#00775B] transition-colors">
+            <button className="flex items-center gap-1.5 h-8 px-3 rounded-[4px] border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:border-[#00775B] hover:text-[#00775B] transition-colors">
               <UserPlus className="w-3.5 h-3.5" />
               Enroll
             </button>
           )}
-          <button className="flex items-center gap-1.5 h-8 px-3 rounded border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:border-neutral-300 transition-colors">
+          <button className="flex items-center gap-1.5 h-8 px-3 rounded-[4px] border border-neutral-200 bg-white text-xs font-semibold text-neutral-700 hover:border-neutral-300 transition-colors">
             <Shield className="w-3.5 h-3.5" />
             Add to Watchlist
           </button>
-          <button className="flex items-center gap-1.5 h-8 px-3 rounded border border-red-200 bg-red-50 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors">
+          <button className="flex items-center gap-1.5 h-8 px-3 rounded-[4px] border border-red-200 bg-red-50 text-xs font-semibold text-red-600 hover:bg-red-100 transition-colors">
             <Siren className="w-3.5 h-3.5" />
             Escalate
           </button>
         </div>
       </div>
+
+      {/* ── Multi-Location Captures (unknown only) ───────────────────────── */}
+      {isUnknown && (
+        <>
+          <SectionLabel>Capture Locations ({MOCK_UNKNOWN_ENTITY.captures.length} sightings)</SectionLabel>
+          <div className="px-6 py-4 border-b border-neutral-50">
+            <div className="grid grid-cols-2 gap-2">
+              {MOCK_UNKNOWN_ENTITY.captures.map(cap => (
+                <div key={cap.id} className="flex flex-col gap-0">
+                  <SurveillanceCapture
+                    seed={cap.seed}
+                    confidence={cap.confidence}
+                    zone={cap.zone}
+                    camera={cap.camera}
+                    time={cap.time}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] text-neutral-500">
+              <div>
+                <span className="font-bold text-neutral-700">First seen:</span> {MOCK_UNKNOWN_ENTITY.first_seen}
+              </div>
+              <div>
+                <span className="font-bold text-neutral-700">Typical window:</span>{" "}
+                {MOCK_UNKNOWN_ENTITY.appearance_summary.typical_time_window}
+              </div>
+              <div>
+                <span className="font-bold text-neutral-700">Avg dwell:</span>{" "}
+                {MOCK_UNKNOWN_ENTITY.appearance_summary.avg_dwell_sec}s
+              </div>
+              <div>
+                <span className="font-bold text-neutral-700">Avg confidence:</span>{" "}
+                <span className="font-data text-red-500">{MOCK_UNKNOWN_ENTITY.appearance_summary.avg_detection_confidence}%</span>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* ── Detection Event ──────────────────────────────────────────────── */}
       <SectionLabel>Detection Event</SectionLabel>
@@ -269,11 +382,11 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
           </div>
         ))}
         <div className="col-span-2 flex gap-2 pt-1">
-          <button className="flex items-center gap-1.5 h-7 px-2.5 rounded border border-neutral-200 text-[11px] text-neutral-600 hover:border-neutral-300 transition-colors">
+          <button className="flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] border border-neutral-200 text-[11px] text-neutral-600 hover:border-neutral-300 transition-colors">
             <Download className="w-3 h-3" />
             HD Crop
           </button>
-          <button className="flex items-center gap-1.5 h-7 px-2.5 rounded border border-neutral-200 text-[11px] text-neutral-600 hover:border-neutral-300 transition-colors">
+          <button className="flex items-center gap-1.5 h-7 px-2.5 rounded-[4px] border border-neutral-200 text-[11px] text-neutral-600 hover:border-neutral-300 transition-colors">
             <Eye className="w-3 h-3" />
             Full Frame
           </button>
@@ -284,7 +397,7 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
       <SectionLabel>
         {isMatched ? "Recognition Result — Matched" : "Recognition Result — No Match"}
       </SectionLabel>
-      <div className={cn("mx-6 my-4 rounded-lg border p-4",
+      <div className={cn("mx-6 my-4 rounded-[4px] border p-4",
         isUnknown ? "bg-neutral-50 border-neutral-200" : "bg-[#E5FFF9] border-[#00775B]/20"
       )}>
         {isMatched ? (
@@ -344,10 +457,10 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
               </ul>
             </div>
             <div className="flex gap-2 pt-1">
-              <button className="flex-1 h-8 rounded bg-[#00775B] text-white text-xs font-semibold hover:bg-[#004E3D] transition-colors flex items-center justify-center gap-1.5">
+              <button className="flex-1 h-8 rounded-[4px] bg-[#00775B] text-white text-xs font-semibold hover:bg-[#004E3D] transition-colors flex items-center justify-center gap-1.5">
                 <UserPlus className="w-3.5 h-3.5" /> Enroll this person
               </button>
-              <button className="flex-1 h-8 rounded border border-neutral-200 text-xs font-semibold text-neutral-700 hover:border-neutral-300 transition-colors">
+              <button className="flex-1 h-8 rounded-[4px] border border-neutral-200 text-xs font-semibold text-neutral-700 hover:border-neutral-300 transition-colors">
                 Mark as Known Visitor
               </button>
             </div>
@@ -363,7 +476,7 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
             <div className="flex items-center gap-0 flex-wrap mb-2">
               {MOCK_MATCHED_ENTITY.cross_camera_path.cameras.map((cam, i) => (
                 <span key={cam} className="flex items-center gap-0">
-                  <span className="text-xs bg-neutral-100 text-neutral-700 rounded px-2 py-1 font-semibold border border-neutral-200">
+                  <span className="text-xs bg-neutral-100 text-neutral-700 rounded-[4px] px-2 py-1 font-semibold border border-neutral-200">
                     {cam}
                     <span className="ml-1.5 font-data tabular-nums text-[10px] text-neutral-400">
                       {MOCK_MATCHED_ENTITY.cross_camera_path.times[i]}
@@ -398,11 +511,10 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
             <div className="space-y-2">
               {todaySightings.map((sighting, i) => (
                 <div key={i} className={cn(
-                  "flex items-start gap-3 px-3 py-2.5 rounded-lg border transition-colors hover:bg-neutral-50",
+                  "flex items-start gap-3 px-3 py-2.5 rounded-[4px] border transition-colors hover:bg-neutral-50",
                   sighting.is_current ? "bg-[#E5FFF9] border-[#00775B]/20" : "bg-white border-neutral-100"
                 )}>
-                  {/* Avatar placeholder */}
-                  <div className="w-8 h-8 rounded bg-neutral-200 flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-[4px] bg-neutral-200 flex items-center justify-center shrink-0">
                     <User className="w-4 h-4 text-neutral-400" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -417,16 +529,16 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
                       <span className="font-data tabular-nums text-[10px] text-neutral-400">{sighting.duration_sec}s</span>
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {sighting.alerts.map((a) => (
+                      {sighting.alerts.map(a => (
                         <AlertBadge key={a} severity={a.includes("BLACKLIST") ? "CRITICAL" : "MEDIUM"} label={a.replace(/_/g, " ")} />
                       ))}
                       {sighting.linked_lpr && (
-                        <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded px-1.5 py-0.5 font-semibold">
+                        <span className="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 rounded-[2px] px-1.5 py-0.5 font-semibold">
                           LPR: {sighting.linked_lpr} ↗
                         </span>
                       )}
                       {sighting.is_current && (
-                        <span className="text-[10px] bg-[#E5FFF9] text-[#00775B] border border-[#00775B]/20 rounded px-1.5 py-0.5 font-bold">CURRENT</span>
+                        <span className="text-[10px] bg-[#E5FFF9] text-[#00775B] border border-[#00775B]/20 rounded-[2px] px-1.5 py-0.5 font-bold">CURRENT</span>
                       )}
                     </div>
                   </div>
@@ -434,21 +546,17 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
               ))}
             </div>
             {!showOlderToday && MOCK_MATCHED_ENTITY.sighting_history.today.length > 3 && (
-              <button
-                onClick={() => setShowOlderToday(true)}
-                className="mt-2 text-xs text-[#00775B] font-semibold hover:underline flex items-center gap-1"
-              >
+              <button onClick={() => setShowOlderToday(true)} className="mt-2 text-xs text-[#00775B] font-semibold hover:underline flex items-center gap-1">
                 +{MOCK_MATCHED_ENTITY.sighting_history.today.length - 3} more today
               </button>
             )}
           </div>
-
           <SectionLabel>Sighting History — Yesterday</SectionLabel>
           <div className="px-6 py-3 border-b border-neutral-50">
             <div className="space-y-2">
               {MOCK_MATCHED_ENTITY.sighting_history.yesterday.map((sighting, i) => (
-                <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-lg border border-neutral-100 bg-white hover:bg-neutral-50 transition-colors">
-                  <div className="w-8 h-8 rounded bg-neutral-200 flex items-center justify-center shrink-0">
+                <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-[4px] border border-neutral-100 bg-white hover:bg-neutral-50 transition-colors">
+                  <div className="w-8 h-8 rounded-[4px] bg-neutral-200 flex items-center justify-center shrink-0">
                     <User className="w-4 h-4 text-neutral-400" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -473,9 +581,9 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
       {/* ── Linked Alerts ─────────────────────────────────────────────────── */}
       <SectionLabel>Linked Alerts & Incidents</SectionLabel>
       <div className="px-6 py-4 space-y-2 pb-8">
-        {entity.linked_alerts.map((alert) => (
+        {entity.linked_alerts.map(alert => (
           <div key={alert.id} className={cn(
-            "flex items-start gap-3 p-3 rounded-lg border",
+            "flex items-start gap-3 p-3 rounded-[4px] border",
             alert.severity === "CRITICAL" ? "bg-[#FFE5E7] border-[#E7000B]/20" :
             alert.severity === "MEDIUM"   ? "bg-[#FFF7E6] border-[#E19A04]/20" :
                                             "bg-neutral-50 border-neutral-200"
@@ -497,7 +605,7 @@ export const EntityDetailPanel = ({ isOpen, onClose, entityType = "matched", onV
               </div>
             </div>
             {alert.status === "ACTIVE" && (
-              <button className="h-7 px-2.5 rounded border border-[#E7000B]/30 text-[10px] font-bold text-[#E7000B] hover:bg-[#E7000B]/10 transition-colors shrink-0">
+              <button className="h-7 px-2.5 rounded-[4px] border border-[#E7000B]/30 text-[10px] font-bold text-[#E7000B] hover:bg-[#E7000B]/10 transition-colors shrink-0">
                 Acknowledge
               </button>
             )}

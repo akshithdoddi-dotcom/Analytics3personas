@@ -28,64 +28,18 @@ export const IdentityMonitoringView = ({
   onJourneyClick,
 }: Props) => (
   <div className="flex flex-col gap-3">
-
-    {/* ── 1. Always-visible system vitals bar ── */}
     <LiveStatusBar terminology={terminology} />
-
-    {/* ── 2. Threat Overview — 3 clickable counters (Blacklist / Unknown / Denied) ── */}
-    <BlacklistUnknownPanel
-      terminology={terminology}
-      onEntityClick={onEntityClick}
-    />
-
-    {/* ── 3. Primary operational split: Security Triage Feed 60% + Zone Activity 40% ── */}
-    <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-start">
-      <div className="lg:col-span-3">
-        <LiveEventFeedPanel
-          terminology={terminology}
-          onEntityClick={onEntityClick}
-        />
-      </div>
-      <div className="lg:col-span-2">
-        <ZoneActivityPanel
-          terminology={terminology}
-          onCameraClick={onCameraClick}
-          onEntityClick={onEntityClick}
-        />
-      </div>
-    </div>
-
-    {/* ── 4. Unknown Person Tracker — elevated to primary action panel ── */}
-    <UnknownTrackerPanel
-      terminology={terminology}
-      onTrackerClick={() => onEntityClick?.("unknown")}
-    />
-
-    {/* ── 5. Movement Trail (renamed from Cross-Camera Tracking) ── */}
-    <CrossCameraPanel
-      terminology={terminology}
-      onJourneyClick={onJourneyClick}
-    />
-
-    {/* ── 6. VIP Detections — FR only, collapsible secondary ── */}
-    {!terminology.isLPR && (
-      <VIPTickerPanel terminology={terminology} />
-    )}
-
-    {/* ── 7. LPR-specific panels ── */}
+    <BlacklistUnknownPanel terminology={terminology} onEntityClick={onEntityClick} />
+    <LiveEventFeedPanel terminology={terminology} onEntityClick={onEntityClick} />
+    <ZoneActivityPanel terminology={terminology} onCameraClick={onCameraClick} onEntityClick={onEntityClick} />
+    <UnknownTrackerPanel terminology={terminology} onTrackerClick={() => onEntityClick?.("unknown")} />
+    <CrossCameraPanel terminology={terminology} onJourneyClick={onJourneyClick} />
+    {!terminology.isLPR && <VIPTickerPanel terminology={terminology} />}
     {terminology.isLPR && (
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <PlateAccuracyPanel terminology={terminology} />
         <VehicleAuthPanel terminology={terminology} />
       </div>
     )}
-
-    {/*
-      REMOVED FROM MONITORING VIEW:
-      – IdentRatePanel:       Rate is in LiveStatusBar. Sparkline chart is a manager/engineering metric.
-      – ListMembershipPanel:  Historical composition (Whitelist/VIP/Unknown breakdown). Manager metric.
-      – ConfidenceHistPanel:  Camera quality histogram. Camera health shown as degraded camera count in status bar.
-      – AccessDeniedPanel:    Total denied count integrated into Threat Overview. Bar chart is for manager view.
-    */}
   </div>
 );
