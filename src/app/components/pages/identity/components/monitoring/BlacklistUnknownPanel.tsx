@@ -6,10 +6,9 @@ import { cn } from "@/app/lib/utils";
 interface Props {
   terminology: IdentityTerminology;
   onEntityClick?: (type: "matched" | "unknown" | "blacklist") => void;
-  onAccessDeniedClick?: () => void;
 }
 
-export const BlacklistUnknownPanel = ({ terminology, onEntityClick, onAccessDeniedClick }: Props) => {
+export const BlacklistUnknownPanel = ({ terminology, onEntityClick }: Props) => {
   const status = IDENTITY_LIVE_STATUS;
   const totalDenied = IDENTITY_ZONES.reduce((s, z) => s + z.denied, 0);
   const topDeniedZone = [...IDENTITY_ZONES].sort((a, b) => b.denied - a.denied)[0];
@@ -102,11 +101,9 @@ export const BlacklistUnknownPanel = ({ terminology, onEntityClick, onAccessDeni
         )}
       </button>
 
-      {/* ── Access Denied Today ── */}
-      <button
-        onClick={() => onAccessDeniedClick?.()}
-        className={cn(
-        "bg-white rounded-[4px] border p-4 flex flex-col gap-2 text-left w-full transition-all hover:shadow-sm group",
+      {/* ── Access Denied Today (informational) ── */}
+      <div className={cn(
+        "bg-white rounded-[4px] border p-4 flex flex-col gap-2",
         totalDenied > 10 ? "border-orange-200" : "border-neutral-200"
       )}>
         <div className="flex items-center justify-between">
@@ -133,10 +130,8 @@ export const BlacklistUnknownPanel = ({ terminology, onEntityClick, onAccessDeni
         <p className="text-[10px] text-neutral-400 leading-snug">
           {topDeniedZone ? `Highest: ${topDeniedZone.zone_name} (${topDeniedZone.denied})` : "No denials"}
         </p>
-        <div className="flex items-center gap-1 text-[10px] font-bold text-orange-600 group-hover:gap-2 transition-all">
-          Review denials <ArrowRight className="w-3 h-3" />
-        </div>
-      </button>
+        <p className="text-[10px] text-neutral-300 leading-snug">See zone activity for breakdown</p>
+      </div>
 
     </div>
   );

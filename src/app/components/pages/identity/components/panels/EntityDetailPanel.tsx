@@ -77,7 +77,7 @@ const UNKNOWN_FACE_ENTITY = {
   stats: [
     { label: "First seen", value: "2026-04-02 · 08:41" },
     { label: "Days seen", value: "4", mono: true },
-    { label: "Typical window", value: "08:30-09:20" },
+    { label: "Typical window", value: "08:30–09:20" },
     { label: "Avg dwell", value: "38.2s", mono: true },
   ],
   alerts: [
@@ -138,22 +138,37 @@ const UNKNOWN_PLATE_ENTITY = {
 };
 
 const SectionLabel = ({ children }: { children: ReactNode }) => (
-  <div className="border-b border-neutral-100 bg-neutral-50 px-6 py-2">
-    <p className="text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-neutral-500">{children}</p>
+  <div className="border-b border-t border-neutral-100 bg-neutral-50 px-5 py-2">
+    <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-400">{children}</p>
+  </div>
+);
+
+const StatBox = ({
+  label,
+  value,
+  tone = "text-neutral-900",
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) => (
+  <div className="rounded-[4px] border border-neutral-200 bg-white px-4 py-3">
+    <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-400">{label}</p>
+    <p className={cn("mt-1.5 text-[24px] leading-none font-black font-data tabular-nums", tone)}>{value}</p>
   </div>
 );
 
 const MembershipBadge = ({ membership }: { membership: "WHITELIST" | "UNKNOWN" | "BLACKLIST" | "VIP" }) => {
   const config = {
     WHITELIST: { label: "Verified", icon: Shield, className: "border-emerald-200 bg-emerald-50 text-emerald-700" },
-    UNKNOWN: { label: "Unknown", icon: User, className: "border-slate-200 bg-slate-50 text-slate-700" },
+    UNKNOWN: { label: "Unknown", icon: User, className: "border-neutral-300 bg-neutral-100 text-neutral-600" },
     BLACKLIST: { label: "Watchlist", icon: ShieldAlert, className: "border-red-200 bg-red-50 text-red-700" },
     VIP: { label: "VIP", icon: Star, className: "border-purple-200 bg-purple-50 text-purple-700" },
   } as const;
   const Icon = config[membership].icon;
   return (
-    <span className={cn("inline-flex h-10 items-center gap-1 rounded-[4px] border px-3 text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em]", config[membership].className)}>
-      <Icon className="h-3 w-3" />
+    <span className={cn("inline-flex h-6 items-center gap-1 rounded-[2px] border px-2 text-[10px] font-black uppercase tracking-[0.08em]", config[membership].className)}>
+      <Icon className="h-2.5 w-2.5" />
       {config[membership].label}
     </span>
   );
@@ -204,8 +219,20 @@ export const EntityDetailPanel = ({
     setCurrentIndex(0);
   }, [entityType, terminology.identityType, isOpen]);
 
-  const nextEvidence = () => setCurrentIndex((value) => (value + 1) % evidence.length);
-  const prevEvidence = () => setCurrentIndex((value) => (value - 1 + evidence.length) % evidence.length);
+  const nextEvidence = () => setCurrentIndex((v) => (v + 1) % evidence.length);
+  const prevEvidence = () => setCurrentIndex((v) => (v - 1 + evidence.length) % evidence.length);
+
+  const alertSeverityStyle = (severity: "HIGH" | "MEDIUM" | "LOW") => {
+    if (severity === "HIGH") return "border-red-200 bg-red-50/40";
+    if (severity === "MEDIUM") return "border-amber-200 bg-white";
+    return "border-neutral-200 bg-neutral-50/60";
+  };
+
+  const alertIconStyle = (severity: "HIGH" | "MEDIUM" | "LOW") => {
+    if (severity === "HIGH") return "text-red-600";
+    if (severity === "MEDIUM") return "text-amber-500";
+    return "text-neutral-400";
+  };
 
   return (
     <SlidePanel
@@ -216,82 +243,82 @@ export const EntityDetailPanel = ({
       headerRight={
         evidence.length > 1 ? (
           <div className="flex items-center gap-1 rounded-[4px] border border-neutral-200 bg-neutral-50 px-1 py-1">
-            <button onClick={prevEvidence} className="flex h-8 w-8 items-center justify-center rounded-[4px] text-neutral-500 transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:bg-white hover:text-neutral-900 active:scale-[0.98]">
-              <ChevronLeft className="h-4 w-4" />
+            <button onClick={prevEvidence} className="flex h-7 w-7 items-center justify-center rounded-[4px] text-neutral-400 transition-all hover:bg-white hover:text-neutral-800 active:scale-[0.97]">
+              <ChevronLeft className="h-3.5 w-3.5" />
             </button>
-            <span className="min-w-[72px] text-center text-[12px] leading-[1.3] font-semibold text-neutral-600">
+            <span className="min-w-[60px] text-center text-[11px] font-bold text-neutral-600 font-data tabular-nums">
               {currentIndex + 1} / {evidence.length}
             </span>
-            <button onClick={nextEvidence} className="flex h-8 w-8 items-center justify-center rounded-[4px] text-neutral-500 transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:bg-white hover:text-neutral-900 active:scale-[0.98]">
-              <ChevronRight className="h-4 w-4" />
+            <button onClick={nextEvidence} className="flex h-7 w-7 items-center justify-center rounded-[4px] text-neutral-400 transition-all hover:bg-white hover:text-neutral-800 active:scale-[0.97]">
+              <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         ) : undefined
       }
     >
-      <div className="border-b border-neutral-100 px-6 py-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr,176px]">
-          <div className="min-w-0 order-1">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-lg font-bold text-neutral-900">{entity.displayName}</h3>
-                  <MembershipBadge membership={entity.listMembership} />
-                </div>
-                <p className="mt-1 text-sm text-neutral-500">{entity.secondaryLine}</p>
-              </div>
-                <div className="rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-right">
-                  <p className="text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-neutral-500">
-                    Evidence Set
-                  </p>
-                  <p className="mt-1 text-[28px] leading-[1.2] font-bold font-data tabular-nums text-neutral-900">{evidence.length}</p>
-                </div>
-              </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {[
-                { label: terminology.matchScoreLabel, value: `${entity.matchConfidence}%`, tone: isUnknown ? "text-amber-600" : isBlacklist ? "text-red-600" : "text-emerald-700" },
-                { label: "Detection Confidence", value: `${entity.detectionConfidence}%`, tone: "text-neutral-900" },
-                { label: "Journey Duration", value: `${entity.journeyMinutes} min`, tone: "text-neutral-900" },
-                ].map((stat) => (
-                  <div key={stat.label} className="rounded-md border border-neutral-200 bg-white px-4 py-4 shadow-sm">
-                    <p className="text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-neutral-500">{stat.label}</p>
-                    <p className={cn("mt-2 text-[28px] leading-[1.2] font-bold font-data tabular-nums", stat.tone)}>{stat.value}</p>
-                  </div>
-                ))}
-              </div>
+      {/* ── Hero: Entity summary + evidence media ── */}
+      <div className="bg-white border-b border-neutral-100 px-5 py-5">
+        <div className="flex gap-5 items-start">
 
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-[14px] leading-[1.5] text-neutral-500">
-              <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{entity.eventTime}</span>
-              <span className="flex items-center gap-1"><Camera className="h-3.5 w-3.5" />{entity.eventCamera}</span>
+          {/* Left: identity info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-[18px] font-black text-neutral-900 leading-none">{entity.displayName}</h3>
+              <MembershipBadge membership={entity.listMembership} />
+            </div>
+            <p className="mt-1 text-[12px] text-neutral-500">{entity.secondaryLine}</p>
+
+            <div className="mt-3 flex items-center gap-4 text-[11px] text-neutral-400">
+              <span className="flex items-center gap-1.5">
+                <Clock className="h-3 w-3" />
+                <span className="font-data tabular-nums">{entity.eventTime}</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Camera className="h-3 w-3" />
+                {entity.eventCamera}
+              </span>
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-2">
+            {/* Three key stats */}
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              <StatBox
+                label={terminology.matchScoreLabel}
+                value={`${entity.matchConfidence}%`}
+                tone={isUnknown ? "text-amber-600" : isBlacklist ? "text-red-700" : "text-emerald-700"}
+              />
+              <StatBox label="Detection" value={`${entity.detectionConfidence}%`} />
+              <StatBox label="Journey" value={`${entity.journeyMinutes}m`} />
+            </div>
+
+            {/* Action buttons */}
+            <div className="mt-4 flex flex-wrap gap-2">
               <button
                 onClick={onViewJourney}
-                className="flex h-10 items-center gap-1.5 rounded-[4px] bg-[var(--primary-main)] px-5 text-[14px] font-semibold text-white transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:bg-[var(--primary-hover)] hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]"
+                className="flex h-9 items-center gap-1.5 rounded-[4px] bg-[#00775B] px-4 text-[12px] font-bold text-white transition-all hover:-translate-y-px hover:bg-[#00956D] hover:shadow-[0_0_20px_rgba(0,119,91,0.35)] active:scale-[0.98]"
               >
                 <Waypoints className="h-3.5 w-3.5" />
                 View Full Journey
               </button>
               {isUnknown && (
-                <button className="flex h-10 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-5 text-[14px] font-semibold text-neutral-700 transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:border-[var(--primary-main)] hover:text-[var(--primary-main)] hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]">
+                <button className="flex h-9 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-4 text-[12px] font-bold text-neutral-700 transition-all hover:-translate-y-px hover:border-[#00775B] hover:text-[#00775B] hover:shadow-[0_0_20px_rgba(0,119,91,0.2)] active:scale-[0.98]">
                   <UserPlus className="h-3.5 w-3.5" />
                   {isLPR ? "Register vehicle" : "Enroll person"}
                 </button>
               )}
-              <button className="flex h-10 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-5 text-[14px] font-semibold text-neutral-700 transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:border-[var(--primary-main)] hover:text-[var(--primary-main)] hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]">
+              <button className="flex h-9 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-4 text-[12px] font-bold text-neutral-700 transition-all hover:-translate-y-px hover:border-[#00775B] hover:text-[#00775B] hover:shadow-[0_0_20px_rgba(0,119,91,0.2)] active:scale-[0.98]">
                 <Shield className="h-3.5 w-3.5" />
                 Add to watchlist
               </button>
-              <button className="flex h-10 items-center gap-1.5 rounded-[4px] border border-[var(--severity-critical)]/20 bg-[var(--severity-critical-light)] px-5 text-[14px] font-semibold text-[var(--severity-critical)] transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:shadow-[0_0_20px_rgba(231,0,11,0.18)] active:scale-[0.98]">
+              <button className="flex h-9 items-center gap-1.5 rounded-[4px] border border-red-200 bg-red-50/40 px-4 text-[12px] font-bold text-red-700 transition-all hover:-translate-y-px hover:shadow-[0_0_20px_rgba(231,0,11,0.15)] active:scale-[0.98]">
                 <Siren className="h-3.5 w-3.5" />
                 Escalate
               </button>
             </div>
           </div>
 
-          <div className="order-2 space-y-3">
+          {/* Right: evidence carousel */}
+          <div className="shrink-0 w-48 flex flex-col gap-2.5">
             <IdentityEvidenceMedia
               kind={isLPR ? "PLATE" : "FACE"}
               seed={currentEvidence.seed}
@@ -302,17 +329,18 @@ export const EntityDetailPanel = ({
               plateText={currentEvidence.plate ?? entity.plateText}
               size="lg"
               live
-              className="h-44 w-44"
+              className="h-44 w-full"
             />
-            <div className="grid grid-cols-2 gap-2">
+            {/* Thumbnail strip */}
+            <div className="grid grid-cols-2 gap-1.5">
               {evidence.map((item, index) => (
                 <button
                   key={item.id}
                   onClick={() => setCurrentIndex(index)}
                   className={cn(
-                    "rounded-md border p-1 text-left transition-all",
+                    "rounded-[4px] border p-0.5 text-left transition-all overflow-hidden",
                     index === currentIndex
-                      ? "border-[#00775B] bg-[#E5FFF9]"
+                      ? "border-[#00775B] shadow-[0_0_0_1px_#00775B]"
                       : "border-neutral-200 bg-white hover:border-neutral-300"
                   )}
                 >
@@ -322,11 +350,11 @@ export const EntityDetailPanel = ({
                     imageSrc={item.imageSrc}
                     confidence={item.confidence}
                     plateText={item.plate ?? entity.plateText}
-                    className="h-20 w-full"
+                    className="h-16 w-full"
                   />
-                  <div className="px-1 pb-1 pt-2">
-                    <p className="truncate text-[10px] font-bold text-neutral-800">{item.label}</p>
-                    <p className="truncate text-[9px] text-neutral-500">{item.sublabel}</p>
+                  <div className="px-1 pb-1 pt-1">
+                    <p className="truncate text-[9px] font-bold text-neutral-700">{item.label}</p>
+                    <p className="truncate text-[8px] text-neutral-400 font-data">{item.sublabel}</p>
                   </div>
                 </button>
               ))}
@@ -335,107 +363,109 @@ export const EntityDetailPanel = ({
         </div>
       </div>
 
-      <SectionLabel>Current Evidence</SectionLabel>
-      <div className="grid gap-4 border-b border-neutral-50 px-6 py-4 lg:grid-cols-[1.2fr,0.8fr]">
-        <div className="rounded-md border border-neutral-200 bg-neutral-50 p-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-neutral-500">Selected capture</p>
-              <p className="mt-1 text-[20px] leading-[1.3] font-semibold text-neutral-800">{currentEvidence.label}</p>
-              <p className="text-[14px] leading-[1.5] text-neutral-500">{currentEvidence.sublabel}</p>
-            </div>
-            <div className="flex gap-2">
-              <button className="flex h-10 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-4 text-[14px] font-semibold text-neutral-700 transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:border-[var(--primary-main)] hover:text-[var(--primary-main)] hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]">
-                <Download className="h-3 w-3" />
-                HD Crop
-              </button>
-              <button className="flex h-10 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-4 text-[14px] font-semibold text-neutral-700 transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:border-[var(--primary-main)] hover:text-[var(--primary-main)] hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]">
-                <Eye className="h-3 w-3" />
-                Full Frame
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {[
-              { label: "Frame", value: currentEvidence.frame, mono: true },
-              { label: "In-frame duration", value: currentEvidence.duration, mono: true },
-              { label: terminology.eventLabel, value: currentEvidence.label },
-            ].map((item) => (
-              <div key={item.label}>
-                <p className="text-[12px] leading-[1.3] uppercase tracking-[0.05em] text-neutral-400">{item.label}</p>
-                <p className={cn("mt-1 text-[14px] leading-[1.5] font-semibold text-neutral-800", item.mono && "font-data tabular-nums")}>{item.value}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* ── Current Evidence detail ── */}
+      <SectionLabel>Current Evidence — {currentEvidence.label}</SectionLabel>
+      <div className="px-5 py-4 bg-white border-b border-neutral-100">
+        <div className="grid gap-3 lg:grid-cols-[1.2fr,0.8fr]">
 
-        <div className="rounded-md border border-neutral-200 bg-white p-6">
-          <p className="text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-neutral-500">Recognition summary</p>
-          <div className="mt-3 space-y-3">
-            {entity.stats.map((item) => (
-              <div key={item.label} className="flex items-center justify-between gap-4 border-b border-neutral-100 pb-2 last:border-b-0 last:pb-0">
-                <span className="text-[14px] leading-[1.5] text-neutral-500">{item.label}</span>
-                <span className={cn("text-[14px] leading-[1.5] font-semibold text-neutral-900", item.mono && "font-data tabular-nums")}>{item.value}</span>
+          {/* Capture info */}
+          <div className="rounded-[4px] border border-neutral-200 bg-neutral-50 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-400">Selected capture</p>
+                <p className="mt-1 text-[16px] font-bold text-neutral-800">{currentEvidence.label}</p>
+                <p className="text-[11px] text-neutral-500 font-data tabular-nums">{currentEvidence.sublabel}</p>
               </div>
-            ))}
+              <div className="flex gap-2 shrink-0">
+                <button className="flex h-8 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-3 text-[11px] font-bold text-neutral-600 transition-all hover:border-[#00775B] hover:text-[#00775B] active:scale-[0.98]">
+                  <Download className="h-3 w-3" />
+                  HD Crop
+                </button>
+                <button className="flex h-8 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-3 text-[11px] font-bold text-neutral-600 transition-all hover:border-[#00775B] hover:text-[#00775B] active:scale-[0.98]">
+                  <Eye className="h-3 w-3" />
+                  Full Frame
+                </button>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-3 border-t border-neutral-200 pt-3">
+              {[
+                { label: "Frame", value: currentEvidence.frame, mono: true },
+                { label: "In-frame duration", value: currentEvidence.duration, mono: true },
+                { label: terminology.eventLabel, value: currentEvidence.label },
+              ].map((item) => (
+                <div key={item.label}>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.06em] text-neutral-400">{item.label}</p>
+                  <p className={cn("mt-1 text-[13px] font-bold text-neutral-800", item.mono && "font-data tabular-nums")}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Recognition summary */}
+          <div className="rounded-[4px] border border-neutral-200 bg-white p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-neutral-400">Recognition Summary</p>
+            <div className="mt-3 divide-y divide-neutral-100">
+              {entity.stats.map((item) => (
+                <div key={item.label} className="flex items-center justify-between gap-4 py-2 first:pt-0 last:pb-0">
+                  <span className="text-[12px] text-neutral-500">{item.label}</span>
+                  <span className={cn("text-[12px] font-bold text-neutral-900", item.mono && "font-data tabular-nums")}>{item.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
+      {/* ── Capture sequence ── */}
       <SectionLabel>{evidence.length} Captures In Sequence</SectionLabel>
-      <div className="border-b border-neutral-50 px-6 py-4">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="border-b border-neutral-100 bg-white px-5 py-3">
+        <div className="flex flex-wrap gap-1.5">
           {evidence.map((item, index) => (
             <button
               key={item.id}
               onClick={() => setCurrentIndex(index)}
               className={cn(
-                "inline-flex h-10 items-center gap-2 rounded-[4px] border px-3 text-[14px] font-semibold transition-all duration-200 [transition-timing-function:var(--ease-snappy)]",
+                "inline-flex h-8 items-center gap-2 rounded-[4px] border px-3 text-[11px] font-bold transition-all",
                 index === currentIndex
                   ? "border-[#00775B] bg-[#E5FFF9] text-[#00775B]"
-                  : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                  : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
               )}
             >
-              <span className="font-data tabular-nums">{index + 1}</span>
+              <span className="font-data tabular-nums text-[10px]">{index + 1}</span>
               <span>{item.label}</span>
-                <span className="font-data tabular-nums text-[12px] text-neutral-400">{item.confidence}%</span>
-              </button>
-            ))}
-          </div>
+              <span className="font-data tabular-nums text-[10px] text-neutral-400">{item.confidence}%</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <SectionLabel>Linked Alerts & Actions</SectionLabel>
-      <div className="space-y-2 px-6 py-4 pb-8">
+      {/* ── Linked alerts ── */}
+      <SectionLabel>Linked Alerts &amp; Actions</SectionLabel>
+      <div className="space-y-2 px-5 py-4 pb-10 bg-white">
         {entity.alerts.map((alert) => (
           <div
             key={alert.id}
             className={cn(
-              "flex items-start gap-3 rounded-md border p-4",
-              alert.severity === "HIGH" ? "border-red-200 bg-red-50" :
-              alert.severity === "MEDIUM" ? "border-amber-200 bg-amber-50" :
-              "border-neutral-200 bg-neutral-50"
+              "flex items-start gap-3 rounded-[4px] border p-4",
+              alertSeverityStyle(alert.severity)
             )}
           >
-            <AlertTriangle className={cn(
-              "mt-0.5 h-4 w-4 shrink-0",
-              alert.severity === "HIGH" ? "text-red-600" :
-              alert.severity === "MEDIUM" ? "text-amber-600" : "text-neutral-500"
-            )} />
+            <AlertTriangle className={cn("mt-0.5 h-4 w-4 shrink-0", alertIconStyle(alert.severity))} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[14px] leading-[1.5] font-semibold text-neutral-800">{alert.label}</span>
+                <span className="text-[13px] font-bold text-neutral-800">{alert.label}</span>
                 {alert.status === "ACTIVE" && (
-                  <span className="inline-flex h-8 items-center rounded-[4px] border border-red-200 bg-white px-2.5 text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-red-600">
+                  <span className="inline-flex h-5 items-center rounded-[2px] bg-red-600 px-1.5 text-[9px] font-black uppercase tracking-wide text-white">
                     Active
                   </span>
                 )}
               </div>
-              <div className="mt-1 flex items-center gap-3 text-[12px] leading-[1.3] text-neutral-500">
+              <div className="mt-1 flex items-center gap-3 text-[11px] text-neutral-400">
                 <span className="font-data tabular-nums">{alert.timestamp}</span>
-                <span>{alert.status}</span>
+                <span className="capitalize">{alert.status.toLowerCase()}</span>
               </div>
             </div>
-            <button className="flex h-10 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-4 text-[14px] font-semibold text-neutral-700 transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:border-[var(--primary-main)] hover:text-[var(--primary-main)] hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]">
+            <button className="shrink-0 flex h-8 items-center gap-1.5 rounded-[4px] border border-neutral-200 bg-white px-3 text-[11px] font-bold text-neutral-600 transition-all hover:border-[#00775B] hover:text-[#00775B] active:scale-[0.98]">
               <Ban className="h-3 w-3" />
               Acknowledge
             </button>
