@@ -9,7 +9,9 @@ export const VIPTickerPanel = ({ terminology: _terminology }: Props) => (
   <Panel
     title="VIP Detections"
     icon={Star}
-    info="VIP and executive individuals detected today. Escort protocols apply."
+    info="VIP and executive individuals detected today. Escort protocols may apply."
+    collapsible
+    defaultOpen={false}
   >
     <div className="flex flex-col gap-2">
       {VIP_ENTRIES.map((entry) => (
