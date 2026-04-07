@@ -9,7 +9,7 @@ import {
 
 interface Props { terminology: IdentityTerminology }
 
-export const AccessDeniedPanel = ({ terminology: _terminology }: Props) => {
+export const AccessDeniedPanel = ({ terminology }: Props) => {
   const data = IDENTITY_ZONES
     .filter((z) => z.denied > 0)
     .sort((a, b) => b.denied - a.denied)
@@ -18,7 +18,7 @@ export const AccessDeniedPanel = ({ terminology: _terminology }: Props) => {
 
   return (
     <Panel
-      title="Access Denied by Zone"
+      title={`${terminology.eventLabel}s Denied by Zone`}
       icon={Ban}
       info="Number of access denial events per zone today. Red bars indicate zones with elevated denials."
     >

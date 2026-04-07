@@ -4,6 +4,7 @@ import { ShieldAlert, Eye, Clock } from "lucide-react";
 import { IDENTITY_ALERTS } from "../../data/mockData";
 import type { IdentityAlert, IdentityTerminology } from "../../data/types";
 import { cn } from "@/app/lib/utils";
+import { IdentityEvidenceMedia } from "../shared/IdentityEvidenceMedia";
 
 type FilterKey = "ALL" | "CRITICAL" | "HIGH" | "UNKNOWNS";
 
@@ -25,14 +26,10 @@ const SEVERITY_ROW: Record<string, { border: string; bg: string; badge: string; 
   LOW:      { border: "border-l-neutral-300",bg: "bg-white",        badge: "bg-neutral-400 text-white",text: "text-neutral-600" },
 };
 
-// Face seed map for deterministic avatar images
-const FACE_SEEDS: Record<string, string> = {
-  "Subject BL-003": "bl003",
-  "Unknown #88": "88",
-  "Unknown #134": "134",
-  "Unknown #201": "201",
-  "Unknown #215": "215",
-  "Executive VIP-007": "vip007",
+const FACE_SOURCES: Record<string, string> = {
+  "Subject BL-003": "https://images.pexels.com/photos/14801453/pexels-photo-14801453.jpeg?cs=srgb&dl=pexels-kwizera-gadson-14801453.jpg&fm=jpg",
+  "Unknown #88": "https://images.pexels.com/photos/33738484/pexels-photo-33738484.jpeg?cs=srgb&dl=pexels-vika-glitter-392079-33738484.jpg&fm=jpg",
+  "Executive VIP-007": "https://images.pexels.com/photos/33738484/pexels-photo-33738484.jpeg?cs=srgb&dl=pexels-vika-glitter-392079-33738484.jpg&fm=jpg",
 };
 
 function resolveEntityType(alert: IdentityAlert): "matched" | "unknown" | "blacklist" {
@@ -40,43 +37,6 @@ function resolveEntityType(alert: IdentityAlert): "matched" | "unknown" | "black
   if (["UNKNOWN_AT_ENTRY", "UNREGISTERED_PLATE", "REPEATED_UNKNOWN"].includes(alert.type)) return "unknown";
   return "matched";
 }
-
-// Surveillance-style face capture with green bounding box
-const FaceCapture = ({ subject, confidence }: { subject: string; confidence?: number }) => {
-  const seed = FACE_SEEDS[subject] ?? subject.replace(/\s+/g, "").toLowerCase();
-  return (
-    <div className="relative w-10 h-10 shrink-0 rounded-[4px] overflow-hidden bg-neutral-900">
-      <img
-        src={`https://i.pravatar.cc/40?u=${seed}`}
-        alt=""
-        className="w-full h-full object-cover opacity-90"
-        onError={(e) => { e.currentTarget.style.display = "none"; }}
-      />
-      {/* Bounding box */}
-      <div className="absolute inset-[3px] pointer-events-none"
-        style={{ border: "1.5px solid #00FF41", boxShadow: "0 0 4px rgba(0,255,65,0.5)" }} />
-      {/* Corner brackets */}
-      <div className="absolute top-0.5 left-0.5 w-2 h-2 border-t border-l border-[#00FF41] pointer-events-none" />
-      <div className="absolute top-0.5 right-0.5 w-2 h-2 border-t border-r border-[#00FF41] pointer-events-none" />
-      <div className="absolute bottom-0.5 left-0.5 w-2 h-2 border-b border-l border-[#00FF41] pointer-events-none" />
-      <div className="absolute bottom-0.5 right-0.5 w-2 h-2 border-b border-r border-[#00FF41] pointer-events-none" />
-      {confidence != null && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-[7px] font-data text-[#00FF41] text-center leading-tight py-px">
-          {confidence}%
-        </div>
-      )}
-    </div>
-  );
-};
-
-// License plate tag
-const PlateTag = ({ plate }: { plate: string }) => (
-  <div className="relative w-[68px] h-10 shrink-0 flex items-center justify-center rounded-[4px] border-2 border-neutral-800 bg-[#F5F5DC]">
-    <span className="font-mono font-black text-[10px] tracking-widest text-neutral-900 leading-none">{plate}</span>
-    <div className="absolute top-0.5 left-1 w-1.5 h-1.5 rounded-full bg-neutral-800 opacity-60" />
-    <div className="absolute top-0.5 right-1 w-1.5 h-1.5 rounded-full bg-neutral-800 opacity-60" />
-  </div>
-);
 
 interface Props {
   terminology: IdentityTerminology;
@@ -188,9 +148,22 @@ export const LiveEventFeedPanel = ({ terminology, onEntityClick }: Props) => {
                     {/* Capture */}
                     <td className="pl-4 pr-2 py-2.5">
                       {isLPR || isLPREvent ? (
-                        <PlateTag plate={alert.subject.length <= 10 ? alert.subject : alert.subject.slice(0, 8)} />
+                        <IdentityEvidenceMedia
+                          kind="PLATE"
+                          seed={alert.subject}
+                          imageSrc="https://images.pexels.com/photos/9331863/pexels-photo-9331863.jpeg?cs=srgb&dl=pexels-hasan-albari-1229861-9331863.jpg&fm=jpg"
+                          plateText={alert.subject.length <= 10 ? alert.subject : alert.subject.slice(0, 10)}
+                          confidence={alert.confidence}
+                          className="h-10 w-[68px]"
+                        />
                       ) : (
-                        <FaceCapture subject={alert.subject} confidence={alert.confidence} />
+                        <IdentityEvidenceMedia
+                          kind="FACE"
+                          seed={alert.subject}
+                          imageSrc={FACE_SOURCES[alert.subject]}
+                          confidence={alert.confidence}
+                          className="h-10 w-10"
+                        />
                       )}
                     </td>
 

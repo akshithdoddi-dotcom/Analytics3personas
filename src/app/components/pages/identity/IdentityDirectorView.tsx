@@ -13,11 +13,15 @@ interface Props {
 }
 
 export const IdentityDirectorView = ({ terminology, timeRange: _timeRange, activeApp: _activeApp }: Props) => (
-  <div className="flex flex-col gap-8 bg-neutral-50 min-h-full">
+  <div className="flex min-h-full flex-col gap-8 bg-neutral-50">
     <ExecutiveSummaryBar terminology={terminology} />
-    <SixMonthTrendChart terminology={terminology} />
-    <AccessRiskSection terminology={terminology} />
-    <CoverageEnrollmentSection terminology={terminology} />
-    <ScorecardSection terminology={terminology} />
+    <div className="grid gap-6 xl:grid-cols-[1.25fr,0.95fr]">
+      <SixMonthTrendChart terminology={terminology} />
+      <AccessRiskSection terminology={terminology} />
+    </div>
+    <div className="grid gap-6 xl:grid-cols-[0.95fr,1.25fr]">
+      <CoverageEnrollmentSection terminology={terminology} />
+      <ScorecardSection terminology={terminology} />
+    </div>
   </div>
 );

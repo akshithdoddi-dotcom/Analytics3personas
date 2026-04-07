@@ -17,15 +17,21 @@ interface Props {
 }
 
 export const IdentityManagerView = ({ terminology, timeRange, activeApp: _activeApp }: Props) => (
-  <div className="flex flex-col gap-6 bg-neutral-50 min-h-full">
+  <div className="flex min-h-full flex-col gap-6 bg-neutral-50">
     <LiveSummaryStrip terminology={terminology} />
     <KPISummaryRow terminology={terminology} />
-    <VolumeSection terminology={terminology} timeRange={timeRange} />
-    <ListMembershipSection terminology={terminology} />
-    <EntryPointTable terminology={terminology} />
-    <UnknownSummarySection terminology={terminology} />
-    <ConfidenceHealthSection terminology={terminology} />
-    <IncidentSummarySection terminology={terminology} />
+    <div className="grid gap-6 xl:grid-cols-[1.35fr,0.95fr]">
+      <VolumeSection terminology={terminology} timeRange={timeRange} />
+      <ListMembershipSection terminology={terminology} />
+    </div>
+    <div className="grid gap-6 xl:grid-cols-[1.45fr,0.9fr]">
+      <EntryPointTable terminology={terminology} />
+      <UnknownSummarySection terminology={terminology} />
+    </div>
+    <div className="grid gap-6 xl:grid-cols-[1fr,1fr]">
+      <ConfidenceHealthSection terminology={terminology} />
+      <IncidentSummarySection terminology={terminology} />
+    </div>
     {terminology.isLPR && <LPRVehicleSection terminology={terminology} />}
   </div>
 );

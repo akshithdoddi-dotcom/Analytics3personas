@@ -30,69 +30,76 @@ export const CrossCameraPanel = ({ terminology, onJourneyClick }: Props) => {
       icon={Waypoints}
       info={`${subtitle}. Click 'View Map' to see the full floor-plan journey with timestamps.`}
     >
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-3">
         {CROSS_CAMERA_TRACKS.map((track) => (
           <div
             key={track.tracker_id}
             className={cn(
-              "rounded-lg p-3 border",
+              "rounded-md border p-4 shadow-sm transition-colors hover:border-[var(--primary-main)]",
               track.badge === "BLACKLIST"
-                ? "bg-red-50 border-red-200"
+                ? "bg-[var(--severity-critical-light)] border-red-200"
                 : track.severity === "high"
-                ? "bg-orange-50 border-orange-200"
-                : "bg-slate-50 border-slate-200"
+                ? "bg-[var(--severity-high-light)] border-orange-200"
+                : "bg-white border-neutral-200"
             )}
           >
-            {/* Header: badge + tracker ID + duration + view map */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2 min-w-0">
+            <div className="grid gap-4 lg:grid-cols-[180px,1fr,140px,120px] lg:items-center">
+              <div className="min-w-0">
                 <span className={cn(
-                  "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase shrink-0",
-                  track.badge === "BLACKLIST" ? "bg-red-600 text-white"   :
-                  track.badge === "WATCH"     ? "bg-orange-500 text-white" : "bg-slate-500 text-white"
+                  "inline-flex h-8 items-center rounded-[4px] px-2.5 text-[12px] font-semibold uppercase",
+                  track.badge === "BLACKLIST" ? "bg-[var(--severity-critical)] text-white" :
+                  track.badge === "WATCH" ? "bg-[var(--severity-high)] text-white" : "bg-neutral-700 text-white"
                 )}>
                   {track.badge}
                 </span>
-                <span className="text-xs font-bold text-neutral-800 truncate">
+                <div className="mt-2 text-[14px] leading-[1.5] font-semibold text-neutral-800">
                   {track.tracker_id}
-                </span>
+                </div>
+                <div className="text-[12px] leading-[1.3] text-neutral-500">{track.zones.join(" · ")}</div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[10px] text-neutral-500 font-data">
-                  {formatDuration(track.duration_sec)} active
+
+              <div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {track.path.map((zone, i) => (
+                    <span key={zone} className="flex items-center gap-1">
+                      <span className={cn(
+                        "rounded-[4px] border px-2 py-1 text-[12px] font-semibold",
+                        i === track.path.length - 1
+                          ? "border-[var(--primary-main)] bg-[var(--primary-subtle)] text-[var(--primary-main)]"
+                          : "border-neutral-200 bg-white text-neutral-700"
+                      )}>
+                        {zone}
+                      </span>
+                      {i < track.path.length - 1 && <span className="text-neutral-300">→</span>}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-2 text-[12px] leading-[1.3] text-neutral-500">
+                  Current zone: <span className="font-semibold text-neutral-700">{track.path[track.path.length - 1]}</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.05em] text-neutral-400">Active</div>
+                <div className="mt-1 font-data tabular-nums text-[20px] leading-[1.3] font-semibold text-neutral-900">
+                  {formatDuration(track.duration_sec)}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 lg:justify-end">
+                <span className="rounded-[4px] border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.05em] text-emerald-700">
+                  Live
                 </span>
                 {onJourneyClick && (
                   <button
                     onClick={onJourneyClick}
-                    className="flex items-center gap-1 h-6 px-2.5 rounded border border-[#00775B]/30 bg-[#E5FFF9] text-[10px] font-bold text-[#00775B] hover:bg-[#00775B] hover:text-white transition-colors"
+                    className="flex h-10 items-center gap-1.5 rounded-[4px] border border-[var(--primary-main)] bg-white px-4 text-[14px] font-semibold text-[var(--primary-main)] transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]"
                   >
-                    <Map className="w-3 h-3" />
+                    <Map className="h-3.5 w-3.5" />
                     View Map
                   </button>
                 )}
               </div>
-            </div>
-
-            {/* Zone path visualization */}
-            <div className="mt-2 flex items-center gap-1 flex-wrap">
-              {track.path.map((zone, i) => (
-                <span key={zone} className="flex items-center gap-1">
-                  <span className={cn(
-                    "text-[10px] rounded px-1.5 py-0.5 border font-medium",
-                    i === track.path.length - 1
-                      ? "bg-[#00775B] text-white border-[#00775B]"
-                      : "bg-white border-neutral-200 text-neutral-700"
-                  )}>
-                    {zone}
-                  </span>
-                  {i < track.path.length - 1 && (
-                    <span className="text-neutral-400 text-[10px]">→</span>
-                  )}
-                </span>
-              ))}
-              <span className="ml-1 text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-600 rounded px-1 py-0.5 font-semibold">
-                ● now
-              </span>
             </div>
           </div>
         ))}
