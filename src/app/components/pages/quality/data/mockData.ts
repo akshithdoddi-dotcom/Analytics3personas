@@ -555,3 +555,31 @@ export const COQ_MONTHLY = [
   { month: "Mar", coq: 9600  },
   { month: "Apr", coq: 8200  },
 ];
+
+// Primary KPIs for defect apps (bottle, pcb, welding, car-damage)
+export const DEFECT_KPIS = {
+  total_inspected: 2480,
+  defect_count: 47,
+  defect_rate_pct: 1.9,
+  defect_density_pct: 2.3,
+  vs_yesterday: {
+    total_inspected: 2310,
+    defect_count: 58,
+    defect_rate_pct: 2.5,
+    defect_density_pct: 2.8,
+  },
+};
+
+// Primary KPIs for compliance apps (ppe, mask, construction)
+export const COMPLIANCE_KPIS = {
+  total_observations: 980,
+  violation_count: 43,
+  compliance_rate_pct: 87.3,
+  high_risk_zones: 2,
+  vs_yesterday: {
+    total_observations: 920,
+    violation_count: 51,
+    compliance_rate_pct: 84.1,
+    high_risk_zones: 3,
+  },
+};

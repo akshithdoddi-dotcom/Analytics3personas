@@ -1,14 +1,12 @@
 import { LiveStatusBar } from "./components/monitoring/LiveStatusBar";
-import { ComplianceGaugePanel } from "./components/monitoring/ComplianceGaugePanel";
-import { CountVsTimePanel } from "./components/monitoring/CountVsTimePanel";
-import { SafeVsUnsafePanel } from "./components/monitoring/SafeVsUnsafePanel";
-import { DailyQualityHourPanel } from "./components/monitoring/DailyQualityHourPanel";
-import { ViolationTypePanel } from "./components/monitoring/ViolationTypePanel";
-import { ZoneHeatmapPanel } from "./components/monitoring/ZoneHeatmapPanel";
-import { AlertFeedPanel } from "./components/monitoring/AlertFeedPanel";
-import { RepeatViolatorPanel } from "./components/monitoring/RepeatViolatorPanel";
+import { PrimaryKPIRow } from "./components/monitoring/PrimaryKPIRow";
+import { ComplianceOverviewRow } from "./components/monitoring/ComplianceOverviewRow";
+import { ViolationInsightsPanel } from "./components/monitoring/ViolationInsightsPanel";
+import { RepeatViolatorsTable } from "./components/monitoring/RepeatViolatorsTable";
+import { HourlyCompliancePanel } from "./components/monitoring/HourlyCompliancePanel";
 import { TimeToCompliancePanel } from "./components/monitoring/TimeToCompliancePanel";
-import { DefectRatePanel } from "./components/monitoring/DefectRatePanel";
+import { ZoneCardsPanel } from "./components/monitoring/ZoneCardsPanel";
+import { AlertFeedPanel } from "./components/monitoring/AlertFeedPanel";
 import { BatchTickerPanel } from "./components/monitoring/BatchTickerPanel";
 import { LIVE_STATUS } from "./data/mockData";
 import type { QualityTerminology } from "./data/types";
@@ -21,29 +19,33 @@ interface Props {
 export const MonitoringView = ({ terminology, timeRange: _timeRange }: Props) => {
   return (
     <div className="flex flex-col gap-3 bg-neutral-50 min-h-full">
-      {/* Pinned status bar */}
+      {/* 1. Pinned live status bar */}
       <LiveStatusBar status={LIVE_STATUS} terminology={terminology} />
 
-      {/* Panel grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <ComplianceGaugePanel terminology={terminology} />
-        <CountVsTimePanel terminology={terminology} />
-        <SafeVsUnsafePanel terminology={terminology} />
-        {terminology.isDefectApp
-          ? <DefectRatePanel terminology={terminology} />
-          : <RepeatViolatorPanel terminology={terminology} />}
-      </div>
+      {/* 2. Primary KPIs — Total Inspected / Defect Count / Rate / Density */}
+      <PrimaryKPIRow terminology={terminology} />
 
-      <DailyQualityHourPanel terminology={terminology} />
+      {/* 3. Compliant vs Non-Compliant + Compliance Rate trend (2-col row) */}
+      <ComplianceOverviewRow terminology={terminology} />
 
+      {/* 4. Violation type breakdown + count vs time (combined panel) */}
+      <ViolationInsightsPanel terminology={terminology} />
+
+      {/* 5. Repeat violators — full-width table, clickable rows */}
+      <RepeatViolatorsTable terminology={terminology} />
+
+      {/* 6. Hourly compliance line chart + Time to Compliance histogram (2-col row) */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <ViolationTypePanel terminology={terminology} />
+        <HourlyCompliancePanel terminology={terminology} />
         {terminology.isDefectApp
           ? <BatchTickerPanel terminology={terminology} />
           : <TimeToCompliancePanel terminology={terminology} />}
       </div>
 
-      <ZoneHeatmapPanel terminology={terminology} />
+      {/* 7. Zone overview table — click row for zone detail panel */}
+      <ZoneCardsPanel terminology={terminology} />
+
+      {/* 8. Alert feed — styled table matching Zone/Volume analytics */}
       <AlertFeedPanel terminology={terminology} />
     </div>
   );
