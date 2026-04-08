@@ -393,11 +393,11 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans text-neutral-900 relative overflow-hidden">
+    <div className="flex h-screen bg-[#021d18] font-sans text-neutral-900 relative overflow-hidden">
       <Sidebar activePage={activePage} onPageChange={setActivePage} collapsed={sidebarCollapsed} noTransition={!sidebarMounted.current} />
 
-      <div className={cn("flex-1 relative z-10 w-full min-w-0 h-full overflow-y-auto overflow-x-hidden", sidebarMounted.current && "transition-all duration-300", sidebarCollapsed ? "lg:pl-14" : "lg:pl-56", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
-        <header className={cn("sticky top-0 z-30 flex h-12 items-center justify-between bg-[#0d1f1b] px-4 border-b border-white/8 text-white transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
+      <div className={cn("flex-1 relative z-10 flex flex-col w-full min-w-0 h-full", sidebarMounted.current && "transition-all duration-300", sidebarCollapsed ? "lg:pl-14" : "lg:pl-56", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
+        <header className={cn("shrink-0 flex h-12 items-center justify-between bg-[#021d18] px-4 border-b border-white/5 text-white transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
           {/* ── Left: toggle + page title ── */}
           <div className="flex items-center gap-3">
             <button
@@ -529,7 +529,8 @@ export default function App() {
           </div>
         </header>
 
-        <div className="p-6 space-y-6 relative w-full overflow-x-hidden rounded-tl-lg">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden rounded-tl-2xl bg-[#F8FAFC]">
+        <div className="p-6 space-y-6 relative w-full">
           <GridBackground className="fixed inset-0 z-[-1] pointer-events-none" />
           
           <div className="xl:hidden mb-4">
@@ -686,6 +687,7 @@ export default function App() {
             </>
           )}
           </section>
+        </div>
         </div>
       </div>
 
