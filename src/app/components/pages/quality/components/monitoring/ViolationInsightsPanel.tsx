@@ -39,19 +39,19 @@ export const ViolationInsightsPanel = ({ terminology }: Props) => {
               const pct = Math.round((item.count / total) * 100);
               return (
                 <div key={item.type} className="flex items-center gap-2 py-0.5">
-                  <span className="w-3.5 text-[10px] font-black text-neutral-300 text-right tabular-nums">{i + 1}</span>
+                  <span className="w-3.5 text-[10px] font-black text-neutral-300 text-right tabular-nums shrink-0">{i + 1}</span>
                   <span
                     className="w-1.5 h-1.5 rounded-full shrink-0"
                     style={{ backgroundColor: item.color }}
                   />
-                  <span className="flex-1 text-[11px] text-neutral-700 truncate">{item.type}</span>
-                  <div className="w-20 h-1 bg-neutral-100 rounded-full overflow-hidden shrink-0">
+                  <span className="w-[72px] shrink-0 text-[11px] text-neutral-700 truncate">{item.type}</span>
+                  <div className="flex-1 h-1 bg-neutral-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full"
                       style={{ width: `${pct}%`, backgroundColor: item.color }}
                     />
                   </div>
-                  <span className="w-5 text-right font-data tabular-nums text-[11px] font-black text-neutral-800">{item.count}</span>
+                  <span className="w-5 text-right font-data tabular-nums text-[11px] font-black text-neutral-800 shrink-0">{item.count}</span>
                 </div>
               );
             })}
