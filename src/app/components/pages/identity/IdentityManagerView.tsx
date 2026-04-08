@@ -1,4 +1,3 @@
-import { LiveSummaryStrip } from "./components/manager/LiveSummaryStrip";
 import { KPISummaryRow } from "./components/manager/KPISummaryRow";
 import { VolumeSection } from "./components/manager/VolumeSection";
 import { EntryPointTable } from "./components/manager/EntryPointTable";
@@ -16,7 +15,6 @@ interface Props {
 
 export const IdentityManagerView = ({ terminology, timeRange, activeApp: _activeApp }: Props) => (
   <div className="flex min-h-full flex-col gap-3 bg-neutral-50">
-    <LiveSummaryStrip terminology={terminology} />
     <KPISummaryRow terminology={terminology} />
     <VolumeSection terminology={terminology} timeRange={timeRange} />
     <div className="grid gap-3 xl:grid-cols-[1.45fr,0.9fr]">

@@ -1,4 +1,3 @@
-import { LiveStatusBar } from "./components/monitoring/LiveStatusBar";
 import { BlacklistUnknownPanel } from "./components/monitoring/BlacklistUnknownPanel";
 import { LiveEventFeedPanel } from "./components/monitoring/LiveEventFeedPanel";
 import { ZoneActivityPanel } from "./components/monitoring/ZoneActivityPanel";
@@ -28,7 +27,6 @@ export const IdentityMonitoringView = ({
   onJourneyClick,
 }: Props) => (
   <div className="flex flex-col gap-3">
-    <LiveStatusBar terminology={terminology} />
     <BlacklistUnknownPanel terminology={terminology} onEntityClick={onEntityClick} />
     <LiveEventFeedPanel terminology={terminology} onEntityClick={onEntityClick} />
     <ZoneActivityPanel terminology={terminology} onCameraClick={onCameraClick} onEntityClick={onEntityClick} />
