@@ -21,7 +21,7 @@ const STATUS_LEFT: Record<string, string> = {
 
 const STATUS_LABEL: Record<string, string> = {
   ON_TRACK:   "On Track",
-  WATCH:      "Watch",
+  WATCH:      "Monitor",
   OFF_TARGET: "Off Target",
 };
 
@@ -46,7 +46,7 @@ export const QualityScorecard = ({ terminology: _terminology }: Props) => {
         <div className="flex items-center gap-3 text-[10px] font-bold">
           <span className="text-emerald-600">{onTrack} On Track</span>
           <span className="text-neutral-200">·</span>
-          <span className="text-amber-600">{watch} Watch</span>
+          <span className="text-amber-600">{watch} Monitor</span>
           <span className="text-neutral-200">·</span>
           <span className="text-red-500">{offTarget} Off Target</span>
         </div>
