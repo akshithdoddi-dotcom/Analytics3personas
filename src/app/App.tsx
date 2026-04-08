@@ -1,11 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { SeverityIcon } from "@/app/components/ui/SeverityIcon";
-import { Sidebar, Page } from "@/app/components/layout/Sidebar";
+import { AppSidebar } from "@/app/components/layout/AppSidebar";
+import type { Page } from "@/app/components/layout/AppSidebar";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from "@/app/components/ui/sidebar";
 import { IncidentCard } from "@/app/components/dashboard/IncidentCard";
 import { IncidentDetailModal } from "@/app/components/dashboard/IncidentDetailModal";
 import { Button } from "@/app/components/ui/Button";
 import { GridBackground } from "@/app/components/layout/GridBackground";
-import { Bell, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Clock, Filter, LayoutGrid, List, Check, User, Video, MapPin, X, ChevronDown, Info, Trash2, Copy, ImageIcon, Activity, ExternalLink, Search, ShieldCheck, Hexagon, Zap, Shield, PanelLeft, Command } from "lucide-react";
+import { Bell, ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, Clock, Filter, LayoutGrid, List, Check, User, Video, MapPin, X, ChevronDown, Info, Trash2, Copy, ImageIcon, Activity, ExternalLink, Search, ShieldCheck, Hexagon, Zap, Shield, Command } from "lucide-react";
 import { cn } from "@/app/lib/utils";
 import { Checkbox } from "@/app/components/ui/Checkbox";
 import { ImageWithFallback } from "@/app/components/figma/ImageWithFallback";
@@ -237,9 +243,6 @@ export default function App() {
   const [isClientSwitcherOpen, setIsClientSwitcherOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState(CLIENTS[0]);
   const [isGlobalFilterOpen, setIsGlobalFilterOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    try { return localStorage.getItem('sidebarCollapsed') === 'true'; } catch { return false; }
-  });
   const [globalFilterType, setGlobalFilterType] = useState<"project" | "camera">("project");
   const [globalFilterQuery, setGlobalFilterQuery] = useState("");
   const [appliedProject, setAppliedProject] = useState<string | null>(null);
@@ -249,13 +252,6 @@ export default function App() {
   const [draftPipeline, setDraftPipeline] = useState<string | null>(null);
   const [draftCameraGroups, setDraftCameraGroups] = useState<Set<string>>(new Set());
 
-  // Suppress layout transition on first paint to avoid flash
-  const sidebarMounted = useRef(false);
-  useEffect(() => { sidebarMounted.current = true; }, []);
-
-  useEffect(() => {
-    try { localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed)); } catch {}
-  }, [sidebarCollapsed]);
 
   useEffect(() => {
     if (isGlobalFilterOpen) {
@@ -393,22 +389,20 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#021d18] font-sans text-neutral-900 relative overflow-hidden">
-      <Sidebar activePage={activePage} onPageChange={setActivePage} collapsed={sidebarCollapsed} noTransition={!sidebarMounted.current} />
+    <SidebarProvider
+      defaultOpen={false}
+      style={{ "--sidebar-width": "14rem" } as React.CSSProperties}
+      className="h-screen font-sans text-neutral-900"
+    >
+      <AppSidebar activePage={activePage} onPageChange={setActivePage} />
 
-      <div className={cn("flex-1 relative z-10 flex flex-col w-full min-w-0 h-full", sidebarMounted.current && "transition-all duration-300", sidebarCollapsed ? "lg:pl-14" : "lg:pl-56", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
-        <header className={cn("shrink-0 flex h-12 items-center justify-between bg-[#021d18] px-4 border-b border-white/5 text-white transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
-          {/* ── Left: toggle + page title ── */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarCollapsed((c) => !c)}
-              className="p-1.5 rounded-md text-white/50 hover:text-white hover:bg-white/8 transition-colors"
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              <PanelLeft className={cn("w-4 h-4 transition-transform duration-300", sidebarCollapsed && "rotate-180")} />
-            </button>
-            <div className="w-px h-4 bg-white/10" />
-            <span className="text-sm font-semibold text-white/90 tracking-tight">
+      <SidebarInset className="overflow-hidden bg-sidebar">
+        <header className={cn("shrink-0 flex h-12 items-center gap-2 bg-sidebar text-sidebar-foreground px-3 border-b border-sidebar-border transition-all duration-300", (isGlobalFilterOpen || isClientSwitcherOpen) && "z-50")}>
+          {/* ── Left: trigger + page title ── */}
+          <div className="flex items-center gap-2">
+            <SidebarTrigger className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-white/5 rounded-md" />
+            <div className="w-px h-4 bg-sidebar-border" />
+            <span className="text-sm font-semibold text-sidebar-foreground/90 tracking-tight">
               {PAGE_TITLES[activePage] ?? "Dashboard"}
             </span>
           </div>
@@ -689,7 +683,7 @@ export default function App() {
           </section>
         </div>
         </div>
-      </div>
+      </SidebarInset>
 
       {/* Incident Detail Modal */}
       <IncidentDetailModal 
@@ -708,6 +702,6 @@ export default function App() {
           setAssignModalOpen(true);
         }}
       />
-    </div>
+    </SidebarProvider>
   );
 }

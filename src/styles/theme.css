@@ -73,13 +73,13 @@
   --chart-3: #D97706;
   --chart-4: #BE123C;
   --chart-5: #059669;
-  --sidebar: #0F172A;
+  --sidebar: #021d18;
   --sidebar-foreground: #F1F5F9;
   --sidebar-primary: #00775B;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #1E293B;
-  --sidebar-accent-foreground: #CBD5E1;
-  --sidebar-border: #1E293B;
+  --sidebar-accent: #062b20;
+  --sidebar-accent-foreground: #cbd5e1;
+  --sidebar-border: rgba(255,255,255,0.06);
   --sidebar-ring: #00775B;
 
   /* Spacing (8px Grid) - Mapping to rem */
