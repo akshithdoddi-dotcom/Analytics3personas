@@ -1,4 +1,3 @@
-import { LiveSummaryStrip } from "./components/manager/LiveSummaryStrip";
 import { KPISummaryRow } from "./components/manager/KPISummaryRow";
 import { ComplianceTrendSection } from "./components/manager/ComplianceTrendSection";
 import { ZonePerformanceTable } from "./components/manager/ZonePerformanceTable";
@@ -12,7 +11,6 @@ interface Props {
 
 export const ManagerView = ({ terminology, timeRange }: Props) => (
   <div className="flex flex-col gap-3 bg-neutral-50 min-h-full">
-    <LiveSummaryStrip terminology={terminology} />
     <KPISummaryRow terminology={terminology} />
     <ComplianceTrendSection terminology={terminology} timeRange={timeRange} />
     <ZonePerformanceTable terminology={terminology} />
