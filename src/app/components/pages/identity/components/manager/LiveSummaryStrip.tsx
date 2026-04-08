@@ -1,59 +1,92 @@
 import { IDENTITY_LIVE_STATUS, IDENTITY_KPI_CARDS } from "../../data/mockData";
 import type { IdentityTerminology } from "../../data/types";
-import { ArrowRight, Activity, AlertTriangle, Camera, ShieldCheck } from "lucide-react";
 import { cn } from "@/app/lib/utils";
+import { Activity, AlertTriangle, ShieldCheck, Wifi, UserX, ShieldAlert } from "lucide-react";
 
 interface Props { terminology: IdentityTerminology }
 
 export const LiveSummaryStrip = ({ terminology }: Props) => {
   const status = IDENTITY_LIVE_STATUS;
-  const stats = [
-    { label: `${terminology.identLabel}s Today`, value: IDENTITY_KPI_CARDS[0].value.toLocaleString(), color: "text-[#00775B]" },
-    { label: `${terminology.blacklistLabel} Alerts`, value: String(status.blacklist_matches), color: status.blacklist_matches > 0 ? "text-red-600" : "text-neutral-700" },
-    { label: `${terminology.unknownShortLabel}s Active`, value: String(status.unknown_count), color: status.unknown_count > 2 ? "text-amber-600" : "text-neutral-700" },
-    { label: "Cameras Online", value: `${status.cameras_online}/${status.cameras_total}`, color: "text-neutral-700" },
-  ];
+  const totalIdents = IDENTITY_KPI_CARDS[0]?.value ?? 0;
+  const matchAcc = IDENTITY_KPI_CARDS[2]?.value ?? 0;
+
+  const hasBlacklist = status.blacklist_matches > 0;
 
   return (
-    <div className="overflow-hidden rounded-md border border-neutral-200 bg-white shadow-sm">
-      <div className="grid gap-6 bg-[linear-gradient(135deg,var(--primary-dark)_0%,var(--primary-main)_22%,var(--neutral-white)_22%,var(--neutral-white)_100%)] px-6 py-6 lg:grid-cols-[1.2fr,2fr]">
-        <div className="rounded-md border border-white/10 bg-[rgba(0,30,24,0.92)] p-6 text-white">
-          <div className="flex items-center gap-2 text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-[#79f2d0]">
-            <Activity className="h-3.5 w-3.5" />
-            Operations Snapshot
-          </div>
-          <p className="mt-3 text-[40px] leading-[1.2] font-bold font-data tabular-nums">{IDENTITY_KPI_CARDS[0].value.toLocaleString()}</p>
-          <p className="mt-1 max-w-[40ch] text-[14px] leading-[1.5] text-white/70">{terminology.identLabel}s processed in the current operating window</p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="inline-flex h-10 items-center gap-1 rounded-[4px] bg-white/10 px-3 text-[12px] font-semibold text-white/85">
-              <ShieldCheck className="h-3 w-3 text-[#79f2d0]" />
-              Match accuracy {IDENTITY_KPI_CARDS[2].value}%
-            </span>
-            <span className="inline-flex h-10 items-center gap-1 rounded-[4px] bg-white/10 px-3 text-[12px] font-semibold text-white/85">
-              <Camera className="h-3 w-3 text-[#79f2d0]" />
-              {status.cameras_online}/{status.cameras_total} cameras online
-            </span>
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          {stats.map((s, i) => (
-            <div key={i} className="rounded-md border border-neutral-200 bg-white p-6 shadow-sm transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:border-[var(--primary-main)] hover:shadow-[0_0_20px_var(--primary-glow)]">
-              <span className="text-[12px] leading-[1.3] font-semibold uppercase tracking-[0.05em] text-neutral-500">{s.label}</span>
-              <div className="mt-2 flex items-end justify-between gap-2">
-                <span className={cn("text-[28px] leading-[1.2] font-bold font-data tabular-nums", s.color)}>{s.value}</span>
-                {i === 1 && status.blacklist_matches > 0 && <AlertTriangle className="h-4 w-4 text-red-500" />}
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className={cn(
+      "bg-white rounded-[4px] border shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2",
+      hasBlacklist ? "border-red-200" : "border-neutral-100"
+    )}>
+      {/* Identifications */}
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+        <Activity className="w-3.5 h-3.5 text-[#00775B]" />
+        <span className="text-[22px] font-black font-data tabular-nums leading-none text-[#00775B]">
+          {totalIdents.toLocaleString()}
+        </span>
+        <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-400">
+          {terminology.identLabel}s today
+        </span>
       </div>
 
-      <div className="flex items-center justify-between border-t border-neutral-200 bg-[var(--neutral-50)] px-6 py-4 text-[14px] leading-[1.5]">
-        <span className="text-neutral-500">Manager view follows the operational analytics style used in volume and zone pages.</span>
-        <button className="flex h-10 items-center gap-1.5 rounded-[4px] border border-[var(--primary-main)] bg-white px-4 font-semibold text-[var(--primary-main)] transition-all duration-200 [transition-timing-function:var(--ease-snappy)] hover:-translate-y-px hover:shadow-[0_0_20px_var(--primary-glow)] active:scale-[0.98]">
-          View all alerts <ArrowRight className="w-3.5 h-3.5" />
-        </button>
+      <div className="h-4 w-px bg-neutral-200 hidden sm:block" />
+
+      {/* Match accuracy */}
+      <div className="flex items-center gap-1.5">
+        <ShieldCheck className="w-3.5 h-3.5 text-neutral-400" />
+        <span className="font-data tabular-nums font-bold text-[13px] text-neutral-800">{matchAcc}%</span>
+        <span className="text-[10px] text-neutral-400">match accuracy</span>
+      </div>
+
+      <div className="h-4 w-px bg-neutral-200 hidden sm:block" />
+
+      {/* Blacklist hits */}
+      <div className="flex items-center gap-1.5">
+        <ShieldAlert className={cn("w-3.5 h-3.5", hasBlacklist ? "text-red-500" : "text-neutral-300")} />
+        <span className={cn("font-data tabular-nums font-bold text-[13px]", hasBlacklist ? "text-red-600" : "text-neutral-500")}>
+          {status.blacklist_matches}
+        </span>
+        <span className="text-[10px] text-neutral-400">{terminology.blacklistLabel} hits</span>
+        {hasBlacklist && (
+          <span className="inline-flex h-5 items-center rounded-[2px] bg-red-600 px-1.5 text-[9px] font-black text-white animate-pulse">
+            ACTIVE
+          </span>
+        )}
+      </div>
+
+      <div className="h-4 w-px bg-neutral-200 hidden sm:block" />
+
+      {/* Unknowns */}
+      <div className="flex items-center gap-1.5">
+        <UserX className={cn("w-3.5 h-3.5", status.unknown_count > 3 ? "text-amber-500" : "text-neutral-300")} />
+        <span className={cn("font-data tabular-nums font-bold text-[13px]", status.unknown_count > 3 ? "text-amber-600" : "text-neutral-500")}>
+          {status.unknown_count}
+        </span>
+        <span className="text-[10px] text-neutral-400">{terminology.unknownShortLabel}s active</span>
+      </div>
+
+      <div className="h-4 w-px bg-neutral-200 hidden sm:block" />
+
+      {/* Alerts */}
+      <div className="flex items-center gap-1.5">
+        <AlertTriangle className="w-3.5 h-3.5 text-neutral-400" />
+        <span className="inline-flex h-5 items-center rounded-[2px] bg-red-600 px-1.5 text-[9px] font-black text-white">
+          C:{status.open_alerts?.critical ?? 0}
+        </span>
+        <span className="inline-flex h-5 items-center rounded-[2px] bg-orange-500 px-1.5 text-[9px] font-black text-white">
+          H:{status.open_alerts?.high ?? 0}
+        </span>
+      </div>
+
+      {/* Camera status — right */}
+      <div className="ml-auto flex items-center gap-1.5">
+        <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+        <span className="text-[11px] text-neutral-600 font-semibold font-data tabular-nums">
+          {status.cameras_online}/{status.cameras_total} cameras
+        </span>
+        <span className="inline-flex h-5 items-center rounded-[2px] border border-emerald-200 bg-emerald-50 px-1.5 text-[9px] font-bold text-emerald-700">
+          LIVE
+        </span>
       </div>
     </div>
   );
