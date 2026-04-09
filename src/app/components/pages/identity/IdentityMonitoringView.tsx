@@ -267,7 +267,6 @@ function SummaryCards({ onFilter }: { onFilter: (f: FeedFilter) => void }) {
 
 function FeedCard({ person, selected, onClick }: { person: FeedPerson; selected: boolean; onClick: () => void }) {
   const cfg = STATUS_CFG[person.status];
-  const isActionable = ["BLACKLIST", "UNKNOWN", "UNREGISTERED", "VIP"].includes(person.status);
 
   return (
     <div
@@ -331,7 +330,7 @@ function FeedCard({ person, selected, onClick }: { person: FeedPerson; selected:
           </div>
         </div>
 
-        {/* Eye toggle */}
+        {/* View button */}
         <div className="shrink-0 flex items-center pr-2.5">
           <div className={cn(
             "w-7 h-7 rounded-[4px] flex items-center justify-center transition-colors border",
@@ -339,45 +338,11 @@ function FeedCard({ person, selected, onClick }: { person: FeedPerson; selected:
               ? "bg-[#00775B] border-[#00775B] text-white"
               : "border-neutral-200 text-neutral-400 hover:border-[#00775B] hover:text-[#00775B]"
           )}>
-            {selected ? <X className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            <Eye className="w-3.5 h-3.5" />
           </div>
         </div>
       </div>
-
-      {/* Inline quick actions when selected */}
-      {selected && isActionable && (
-        <div className="border-t border-neutral-100 px-3 py-2 bg-white/80 flex flex-wrap gap-1.5">
-          {person.status === "BLACKLIST" && <>
-            <QuickPill icon={Check}        label="Acknowledge"  variant="danger"  />
-            <QuickPill icon={Radio}        label="Dispatch"     variant="danger"  />
-            <QuickPill icon={Lock}         label="Lock Entry"   variant="neutral" />
-          </>}
-          {(person.status === "UNKNOWN" || person.status === "UNREGISTERED") && <>
-            <QuickPill icon={UserPlus}     label="Enroll"       variant="primary" />
-            <QuickPill icon={BookmarkPlus} label="Watchlist"    variant="neutral" />
-            <QuickPill icon={Zap}          label="Escalate"     variant="danger"  />
-          </>}
-          {person.status === "VIP" && <>
-            <QuickPill icon={Radio}        label="Notify Host"  variant="primary" />
-          </>}
-        </div>
-      )}
     </div>
-  );
-}
-
-function QuickPill({ icon: Icon, label, variant }: { icon: React.ElementType; label: string; variant: "primary" | "danger" | "neutral" }) {
-  const [done, setDone] = useState(false);
-  const cls = { primary: "border-[#00775B]/40 text-[#00775B] hover:bg-[#00775B]/5", danger: "border-red-300 text-red-600 hover:bg-red-50", neutral: "border-neutral-200 text-neutral-600 hover:bg-neutral-50" }[variant];
-  return done ? (
-    <span className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
-      <Check className="w-2.5 h-2.5" /> Done
-    </span>
-  ) : (
-    <button onClick={e => { e.stopPropagation(); setDone(true); setTimeout(() => setDone(false), 3000); }}
-      className={cn("flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-semibold transition-colors", cls)}>
-      <Icon className="w-2.5 h-2.5" /> {label}
-    </button>
   );
 }
 
@@ -891,14 +856,27 @@ export const IdentityMonitoringView = ({ terminology: _t }: Props) => {
           </div>
         </div>
 
-        {/* RIGHT: Detail */}
+        {/* RIGHT: Always-visible summary */}
         <div className="flex flex-col gap-3">
-          {selectedPerson
-            ? <EntityDetailPanel person={selectedPerson} onClose={() => setSelectedId(null)} />
-            : <TodaySummary />
-          }
+          <TodaySummary />
         </div>
       </div>
+
+      {/* Entity Detail — slide-in modal overlay */}
+      {selectedPerson && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px]"
+            onClick={() => setSelectedId(null)}
+          />
+          {/* Panel — slides in from right */}
+          <div className="fixed right-0 top-0 bottom-0 z-50 flex flex-col bg-white shadow-2xl border-l border-neutral-200 overflow-y-auto"
+            style={{ width: 460 }}>
+            <EntityDetailPanel person={selectedPerson} onClose={() => setSelectedId(null)} />
+          </div>
+        </>
+      )}
     </div>
   );
 };
