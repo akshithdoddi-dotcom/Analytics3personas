@@ -1,678 +1,490 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { cn } from "@/app/lib/utils";
 import {
-  AlertTriangle,
-  User,
-  MapPin,
-  ChevronRight,
-  Navigation,
-  X,
-  Camera,
-  CarFront,
-  Waypoints,
-  Maximize2,
+  ShieldAlert, UserX, Ban, MapPin, Clock, Check, ArrowUpRight,
+  Fingerprint, Car, Navigation2, Radio, Zap, Lock, UserPlus,
+  BookmarkPlus, Shield, X, Eye,
 } from "lucide-react";
+import { IdentityEvidenceMedia } from "./components/shared/IdentityEvidenceMedia";
+import { IDENTITY_LIVE_STATUS, IDENTITY_ZONES, IDENTITY_ALERTS, UNKNOWN_TRACKERS } from "./data/mockData";
 import type { IdentityTerminology } from "./data/types";
 import type { IdentityAppOption } from "../IdentityAnalytics";
 
-type MatchStatus =
-  | "BLACKLIST"
-  | "UNKNOWN"
-  | "WHITELIST"
-  | "AUTHORIZED"
-  | "VIP"
-  | "UNREGISTERED";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
+type MatchStatus = "BLACKLIST" | "UNKNOWN" | "WHITELIST" | "AUTHORIZED" | "VIP" | "UNREGISTERED";
 type FeedFilter = "all" | "threats" | "unknowns" | "vip" | "authorized";
+type ActionState = "idle" | "confirming" | "success";
 
-interface FeedItem {
+interface FeedPerson {
   id: string;
-  type: "FACE" | "PLATE";
+  identType: "FACE" | "PLATE";
   status: MatchStatus;
   displayName: string;
   subLabel?: string;
   camera: string;
   cameraId: string;
+  zone: string;
   time: string;
   confidence?: number;
   dwell?: number;
-  recurring?: boolean;
   recurringDays?: number;
-  actions: string[];
-  isSticky?: boolean;
   imageSrc?: string;
   plateText?: string;
+  severity?: "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
+  department?: string;
+  employeeId?: string;
+  enrollDate?: string;
+  totalAppearances?: number;
 }
 
 interface JourneyStop {
   camera: string;
+  zone: string;
   time: string;
-  dwell: string;
-  note?: string;
-  status?: string;
+  dwellText: string;
+  isCurrent?: boolean;
+  alertNote?: string;
+  linkedPlate?: string;
 }
 
-const REAL_FACE_IMAGES = [
-  "https://images.pexels.com/photos/14801453/pexels-photo-14801453.jpeg?cs=srgb&dl=pexels-kwizera-gadson-14801453.jpg&fm=jpg",
-  "https://images.pexels.com/photos/33738484/pexels-photo-33738484.jpeg?cs=srgb&dl=pexels-vika-glitter-392079-33738484.jpg&fm=jpg",
-];
+// ─── Mock feed data ───────────────────────────────────────────────────────────
 
-const REAL_LPR_IMAGES = [
-  "https://images.pexels.com/photos/9331863/pexels-photo-9331863.jpeg?cs=srgb&dl=pexels-hasan-albari-1229861-9331863.jpg&fm=jpg",
-  "https://images.pexels.com/photos/10182843/pexels-photo-10182843.jpeg?cs=srgb&dl=pexels-hson-10182843.jpg&fm=jpg",
-];
-
-const FEED_ITEMS: FeedItem[] = [
+const FEED_PEOPLE: FeedPerson[] = [
   {
-    id: "f1",
-    type: "FACE",
-    status: "BLACKLIST",
-    displayName: "BL-003",
-    camera: "Main Lobby",
-    cameraId: "cam_main_lobby",
-    time: "09:13:22",
-    confidence: 94.7,
-    actions: ["Acknowledge", "Dispatch Guard", "Lock Entry"],
-    isSticky: true,
-    imageSrc: REAL_FACE_IMAGES[0],
+    id: "f1", identType: "FACE", status: "BLACKLIST",
+    displayName: "BL-003", subLabel: "Confirmed blacklist match — Immediate action required",
+    camera: "Cam 01", cameraId: "cam_main_lobby", zone: "Main Lobby",
+    time: "09:13:22", confidence: 94.7, severity: "CRITICAL",
+    imageSrc: "https://i.pravatar.cc/160?u=bl003-subjectx",
   },
   {
-    id: "f2",
-    type: "FACE",
-    status: "UNKNOWN",
-    displayName: "Unknown #88",
-    camera: "South Entrance",
-    cameraId: "cam_south_entrance",
-    time: "09:13:55",
-    dwell: 252,
-    recurring: true,
-    recurringDays: 4,
-    actions: ["Enroll", "Escalate", "Track Journey"],
-    isSticky: true,
-    imageSrc: REAL_FACE_IMAGES[1],
+    id: "f2", identType: "FACE", status: "UNKNOWN",
+    displayName: "Unknown #88", subLabel: "Recurring — 4 of last 5 days · 4m 12s dwell",
+    camera: "Cam 05", cameraId: "cam_south_entrance", zone: "South Entrance",
+    time: "09:13:55", dwell: 252, recurringDays: 4, severity: "MEDIUM",
+    imageSrc: "https://i.pravatar.cc/160?u=unk088-recurringz",
   },
   {
-    id: "f3",
-    type: "FACE",
-    status: "VIP",
-    displayName: "VIP-007",
-    camera: "North Entrance",
-    cameraId: "cam_north_entrance",
-    time: "09:12:45",
-    confidence: 97.3,
-    actions: ["Notify Host"],
-    imageSrc: REAL_FACE_IMAGES[0],
+    id: "f3", identType: "FACE", status: "VIP",
+    displayName: "VIP-007", subLabel: "Executive — Escort protocol suggested",
+    camera: "Cam 03", cameraId: "cam_north_entrance", zone: "North Entrance",
+    time: "09:12:45", confidence: 97.3, severity: "LOW",
+    imageSrc: "https://i.pravatar.cc/160?u=vip007-exec99",
   },
   {
-    id: "f4",
-    type: "FACE",
-    status: "WHITELIST",
-    displayName: "John Smith",
-    subLabel: "Engineering · EMP-4821",
-    camera: "Main Lobby",
-    cameraId: "cam_main_lobby",
-    time: "09:12:45",
-    confidence: 96.1,
-    actions: [],
-    imageSrc: REAL_FACE_IMAGES[0],
+    id: "f4", identType: "FACE", status: "WHITELIST",
+    displayName: "John Smith", subLabel: "Engineering · L3 Access",
+    camera: "Cam 01", cameraId: "cam_main_lobby", zone: "Main Lobby",
+    time: "09:12:45", confidence: 96.1,
+    imageSrc: "https://i.pravatar.cc/160?u=john-smith-4821",
+    department: "Engineering", employeeId: "EMP-4821",
+    enrollDate: "2025-08-14", totalAppearances: 312,
   },
   {
-    id: "f5",
-    type: "PLATE",
-    status: "AUTHORIZED",
-    displayName: "KA05MJ4421",
-    subLabel: "White Honda City · Rahul Sharma",
-    camera: "Garage Entry A",
-    cameraId: "cam_garage_entry_a",
-    time: "09:13:05",
-    confidence: 98.2,
-    actions: [],
-    imageSrc: REAL_LPR_IMAGES[0],
-    plateText: "KA05MJ4421",
+    id: "f5", identType: "PLATE", status: "AUTHORIZED",
+    displayName: "KA05MJ4421", subLabel: "White Honda City · Rahul Sharma",
+    camera: "Cam 08", cameraId: "cam_garage_entry_a", zone: "Garage Entry A",
+    time: "09:13:05", confidence: 98.2, plateText: "KA05MJ4421",
+    department: "Finance", employeeId: "EMP-2231",
+    enrollDate: "2024-11-02", totalAppearances: 88,
   },
   {
-    id: "f6",
-    type: "PLATE",
-    status: "UNREGISTERED",
-    displayName: "UP80MN1123",
-    subLabel: "Unknown vehicle",
-    camera: "Garage Entry A",
-    cameraId: "cam_garage_entry_a",
-    time: "09:14:06",
-    confidence: 91,
-    recurring: true,
-    recurringDays: 4,
-    actions: ["Add to Authorized", "Escalate", "Notify Security"],
-    imageSrc: REAL_LPR_IMAGES[1],
+    id: "f6", identType: "PLATE", status: "UNREGISTERED",
+    displayName: "UP80MN1123", subLabel: "Unknown vehicle · Entry blocked",
+    camera: "Cam 08", cameraId: "cam_garage_entry_a", zone: "Garage Entry A",
+    time: "09:14:06", confidence: 91.0, recurringDays: 4, severity: "MEDIUM",
     plateText: "UP80MN1123",
   },
   {
-    id: "f7",
-    type: "FACE",
-    status: "UNKNOWN",
-    displayName: "Unknown #134",
-    camera: "Garage Entry B",
-    cameraId: "cam_garage_entry_b",
-    time: "09:11:45",
-    dwell: 88,
-    recurring: true,
-    recurringDays: 2,
-    actions: ["Enroll", "Escalate"],
-    imageSrc: REAL_FACE_IMAGES[1],
+    id: "f7", identType: "FACE", status: "UNKNOWN",
+    displayName: "Unknown #134", subLabel: "Recurring over 2 days · Garage area",
+    camera: "Cam 09", cameraId: "cam_garage_entry_b", zone: "Garage Entry B",
+    time: "09:11:45", dwell: 88, recurringDays: 2, severity: "MEDIUM",
+    imageSrc: "https://i.pravatar.cc/160?u=unk134-garagek",
   },
   {
-    id: "f8",
-    type: "FACE",
-    status: "UNKNOWN",
-    displayName: "Unknown #201",
-    camera: "Main Lobby",
-    cameraId: "cam_main_lobby",
-    time: "09:10:29",
-    dwell: 12,
-    actions: ["Enroll", "Mark as Visitor"],
-    imageSrc: REAL_FACE_IMAGES[1],
-  },
-  {
-    id: "f9",
-    type: "FACE",
-    status: "WHITELIST",
-    displayName: "Sarah Johnson",
-    subLabel: "HR Dept · EMP-2198",
-    camera: "Reception",
-    cameraId: "cam_reception",
-    time: "09:09:14",
-    confidence: 95.4,
-    actions: [],
-    imageSrc: REAL_FACE_IMAGES[0],
-  },
-  {
-    id: "f10",
-    type: "FACE",
-    status: "WHITELIST",
-    displayName: "Raj Patel",
-    subLabel: "Finance · EMP-3312",
-    camera: "North Entrance",
-    cameraId: "cam_north_entrance",
-    time: "09:08:55",
-    confidence: 97.8,
-    actions: [],
-    imageSrc: REAL_FACE_IMAGES[0],
+    id: "f8", identType: "FACE", status: "WHITELIST",
+    displayName: "Sarah Johnson", subLabel: "Human Resources · L2 Access",
+    camera: "Cam 12", cameraId: "cam_reception", zone: "Reception",
+    time: "09:09:14", confidence: 95.4,
+    imageSrc: "https://i.pravatar.cc/160?u=sarah-johnson-2198",
+    department: "Human Resources", employeeId: "EMP-2198",
+    enrollDate: "2024-03-20", totalAppearances: 187,
   },
 ];
 
 const JOURNEY_DATA: Record<string, JourneyStop[]> = {
   f1: [
-    { camera: "Parking Garage", time: "08:52", dwell: "4.2s", note: "KA05MJ4421 linked" },
-    { camera: "South Entrance", time: "08:58", dwell: "42s", note: "Unknown alert resolved" },
-    { camera: "North Entrance", time: "09:11", dwell: "2.1s" },
-    { camera: "Main Lobby", time: "09:13", dwell: "8.3s", status: "ACTIVE", note: "Blacklist alert ACTIVE" },
+    { camera: "Cam 11", zone: "Parking Garage",  time: "08:52", dwellText: "4.2s", linkedPlate: "KA05MJ4421" },
+    { camera: "Cam 05", zone: "South Entrance",  time: "08:58", dwellText: "42s",  alertNote: "Unknown alert (resolved)" },
+    { camera: "Cam 03", zone: "North Entrance",  time: "09:11", dwellText: "2.1s" },
+    { camera: "Cam 01", zone: "Main Lobby",      time: "09:13", dwellText: "8.3s", isCurrent: true, alertNote: "Blacklist alert ACTIVE" },
   ],
   f2: [
-    { camera: "South Entrance", time: "08:41", dwell: "31s" },
-    { camera: "South Entrance", time: "09:13", dwell: "4m 12s", status: "ACTIVE", note: "Currently present, dwell growing" },
+    { camera: "Cam 05", zone: "South Entrance",  time: "08:41", dwellText: "31s" },
+    { camera: "Cam 01", zone: "Main Lobby",      time: "09:05", dwellText: "18s" },
+    { camera: "Cam 05", zone: "South Entrance",  time: "09:13", dwellText: "4m 12s", isCurrent: true, alertNote: "Dwell time growing" },
+  ],
+  f3: [
+    { camera: "Cam 03", zone: "North Entrance",  time: "09:12", dwellText: "2.8s", isCurrent: true, alertNote: "VIP — escort recommended" },
+  ],
+  f4: [
+    { camera: "Cam 11", zone: "Parking Garage",  time: "08:52", dwellText: "3.1s", linkedPlate: "KA05MJ4421" },
+    { camera: "Cam 03", zone: "North Entrance",  time: "09:11", dwellText: "1.8s" },
+    { camera: "Cam 01", zone: "Main Lobby",      time: "09:12", dwellText: "3.0s", isCurrent: true },
   ],
   f5: [
-    { camera: "Garage Entry A", time: "09:05", dwell: "3.2s" },
-    { camera: "Loading Bay", time: "09:09", dwell: "4.8s" },
-    { camera: "Service Ramp", time: "09:13", dwell: "2.1s", status: "ACTIVE", note: "Authorized access confirmed" },
+    { camera: "Cam 08", zone: "Garage Entry A",  time: "09:13", dwellText: "2.1s", isCurrent: true, alertNote: "ENTRY authorised" },
   ],
   f6: [
-    { camera: "Basement Store", time: "08:57", dwell: "6.1s" },
-    { camera: "Service Ramp", time: "09:05", dwell: "4.7s" },
-    { camera: "Garage Entry A", time: "09:14", dwell: "3.0s", status: "ACTIVE", note: "Blocked at gate" },
+    { camera: "Cam 08", zone: "Garage Entry A",  time: "09:14", dwellText: "—", isCurrent: true, alertNote: "Entry BLOCKED — unregistered" },
+  ],
+  f7: [
+    { camera: "Cam 09", zone: "Garage Entry B",  time: "09:08", dwellText: "22s" },
+    { camera: "Cam 09", zone: "Garage Entry B",  time: "09:11", dwellText: "1m 28s", isCurrent: true, alertNote: "Recurring unknown" },
+  ],
+  f8: [
+    { camera: "Cam 03", zone: "North Entrance",  time: "09:06", dwellText: "2.2s" },
+    { camera: "Cam 12", zone: "Reception",       time: "09:09", dwellText: "1.5s", isCurrent: true },
   ],
 };
 
-const ZONE_NODES = [
-  { id: "cam_parking_garage", label: "Parking", x: 15, y: 78, level: "normal" },
-  { id: "cam_south_entrance", label: "South Ent.", x: 28, y: 58, level: "unknown" },
-  { id: "cam_north_entrance", label: "North Ent.", x: 62, y: 28, level: "normal" },
-  { id: "cam_main_lobby", label: "Main Lobby", x: 78, y: 52, level: "critical" },
-  { id: "cam_garage_entry_a", label: "Garage A", x: 18, y: 38, level: "unknown" },
-  { id: "cam_garage_entry_b", label: "Garage B", x: 34, y: 20, level: "normal" },
-  { id: "cam_reception", label: "Reception", x: 60, y: 70, level: "normal" },
-  { id: "cam_west_corridor", label: "West Corr.", x: 48, y: 50, level: "normal" },
-  { id: "cam_executive_floor", label: "Executive", x: 88, y: 22, level: "normal" },
-  { id: "cam_server_room", label: "Server Room", x: 84, y: 82, level: "offline" },
-];
+// ─── Status config ────────────────────────────────────────────────────────────
 
-const LEVEL_COLOR: Record<string, string> = {
-  critical: "#DC2626",
-  unknown: "#D97706",
-  vip: "#CA8A04",
-  normal: "#00775B",
-  offline: "#9CA3AF",
+const STATUS_CFG: Record<MatchStatus, {
+  label: string; badgeBg: string; badgeText: string;
+  borderColor: string; rowBg: string; textColor: string; dotColor: string;
+}> = {
+  BLACKLIST:    { label: "Blacklist",    badgeBg: "bg-red-600",     badgeText: "text-white",      borderColor: "border-l-red-500",    rowBg: "bg-red-50/50",    textColor: "text-red-700",    dotColor: "bg-red-500"    },
+  UNKNOWN:      { label: "Unknown",     badgeBg: "bg-amber-500",   badgeText: "text-white",      borderColor: "border-l-amber-400",  rowBg: "bg-amber-50/40",  textColor: "text-amber-700",  dotColor: "bg-amber-400"  },
+  UNREGISTERED: { label: "Unregistered",badgeBg: "bg-amber-500",   badgeText: "text-white",      borderColor: "border-l-amber-400",  rowBg: "bg-amber-50/40",  textColor: "text-amber-700",  dotColor: "bg-amber-400"  },
+  VIP:          { label: "VIP",         badgeBg: "bg-yellow-400",  badgeText: "text-yellow-900", borderColor: "border-l-yellow-400", rowBg: "bg-yellow-50/30", textColor: "text-yellow-700", dotColor: "bg-yellow-400" },
+  WHITELIST:    { label: "Authorised",  badgeBg: "bg-emerald-600", badgeText: "text-white",      borderColor: "border-l-transparent",rowBg: "bg-white",         textColor: "text-emerald-700",dotColor: "bg-emerald-500"},
+  AUTHORIZED:   { label: "Authorised",  badgeBg: "bg-emerald-600", badgeText: "text-white",      borderColor: "border-l-transparent",rowBg: "bg-white",         textColor: "text-emerald-700",dotColor: "bg-emerald-500"},
 };
 
-const PATHS: Record<string, string[]> = {
-  cam_main_lobby: ["cam_parking_garage", "cam_south_entrance", "cam_north_entrance", "cam_main_lobby"],
-  cam_south_entrance: ["cam_south_entrance"],
-  cam_garage_entry_a: ["cam_garage_entry_a", "cam_west_corridor", "cam_main_lobby"],
-  cam_garage_entry_b: ["cam_garage_entry_b", "cam_garage_entry_a"],
-};
-
-const STATUS_META: Record<
-  MatchStatus,
-  { label: string; textColor: string; border: string; bg: string; badgeBg: string; badgeText: string }
-> = {
-  BLACKLIST: { label: "Blacklist", textColor: "text-red-600", border: "border-l-red-500", bg: "bg-red-50/60", badgeBg: "bg-red-100", badgeText: "text-red-700" },
-  UNKNOWN: { label: "Unknown", textColor: "text-amber-600", border: "border-l-amber-400", bg: "bg-amber-50/40", badgeBg: "bg-amber-100", badgeText: "text-amber-700" },
-  WHITELIST: { label: "Whitelist", textColor: "text-emerald-700", border: "border-l-transparent", bg: "", badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
-  AUTHORIZED: { label: "Authorized", textColor: "text-emerald-700", border: "border-l-transparent", bg: "", badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
-  VIP: { label: "VIP", textColor: "text-yellow-700", border: "border-l-yellow-400", bg: "bg-yellow-50/40", badgeBg: "bg-yellow-100", badgeText: "text-yellow-700" },
-  UNREGISTERED: { label: "Unregistered", textColor: "text-amber-600", border: "border-l-amber-400", bg: "bg-amber-50/40", badgeBg: "bg-amber-100", badgeText: "text-amber-700" },
-};
-
-function formatDwell(sec: number) {
+function fmtDwell(sec: number) {
   if (sec < 60) return `${sec}s`;
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  const m = Math.floor(sec / 60), s = sec % 60;
+  return s ? `${m}m ${s}s` : `${m}m`;
 }
 
-function StatusPill({
-  count,
-  label,
-  colorClass,
-  pulse = false,
-}: {
-  count: number | string;
-  label: string;
-  colorClass: string;
-  pulse?: boolean;
-}) {
+// ─── Status Bar ───────────────────────────────────────────────────────────────
+
+function StatusPill({ label, colorClass, pulse }: { label: string; colorClass: string; pulse?: boolean }) {
   return (
-    <div className={cn("flex items-center gap-1.5 rounded-[4px] px-2.5 py-1 text-xs font-semibold", colorClass)}>
-      {pulse && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current animate-pulse" />}
-      <span>{count}</span>
-      <span className="font-normal opacity-75">{label}</span>
+    <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-semibold", colorClass)}>
+      {pulse && <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shrink-0" />}
+      <span>{label}</span>
     </div>
   );
 }
 
-function AvatarBox({ item, className }: { item: FeedItem; className?: string }) {
-  const bg =
-    item.status === "BLACKLIST"
-      ? "bg-red-100"
-      : item.status === "VIP"
-      ? "bg-yellow-100"
-      : item.status === "UNKNOWN" || item.status === "UNREGISTERED"
-      ? "bg-amber-100"
-      : "bg-emerald-50";
+// ─── Summary cards ────────────────────────────────────────────────────────────
+
+function SummaryCards({ onFilter }: { onFilter: (f: FeedFilter) => void }) {
+  const status = IDENTITY_LIVE_STATUS;
+  const totalDenied = IDENTITY_ZONES.reduce((s, z) => s + z.denied, 0);
+  const topDeniedZone = [...IDENTITY_ZONES].sort((a, b) => b.denied - a.denied)[0];
+  const blAlert = IDENTITY_ALERTS.find(a => a.type === "BLACKLIST_MATCH" && a.status === "ACTIVE");
+
+  const cards = [
+    {
+      icon: ShieldAlert, label: "Blacklist Hits", value: status.blacklist_matches,
+      sub: blAlert ? `${blAlert.zone} · ${blAlert.timestamp}` : "No active hits",
+      badge: status.blacklist_matches > 0 ? "ACTIVE" : null,
+      badgeClass: "bg-red-600 text-white animate-pulse",
+      valueClass: status.blacklist_matches > 0 ? "text-red-700" : "text-neutral-800",
+      cardClass: status.blacklist_matches > 0 ? "border-red-200 bg-red-50/60 hover:shadow-md hover:-translate-y-px" : "border-neutral-100",
+      iconClass: status.blacklist_matches > 0 ? "text-red-500" : "text-neutral-300",
+      clickable: status.blacklist_matches > 0, filter: "threats" as FeedFilter,
+      cta: status.blacklist_matches > 0 ? "View threat" : null, ctaClass: "text-red-600",
+    },
+    {
+      icon: UserX, label: "Unknowns Active", value: UNKNOWN_TRACKERS.length,
+      sub: "Longest tracked: 5h 19m",
+      badge: UNKNOWN_TRACKERS.length > 3 ? "MONITOR" : null,
+      badgeClass: "bg-amber-500 text-white",
+      valueClass: UNKNOWN_TRACKERS.length > 3 ? "text-amber-600" : "text-neutral-800",
+      cardClass: UNKNOWN_TRACKERS.length > 3 ? "border-amber-200 bg-amber-50/40 hover:shadow-md hover:-translate-y-px" : "border-neutral-100",
+      iconClass: UNKNOWN_TRACKERS.length > 0 ? "text-amber-500" : "text-neutral-300",
+      clickable: UNKNOWN_TRACKERS.length > 0, filter: "unknowns" as FeedFilter,
+      cta: UNKNOWN_TRACKERS.length > 0 ? "Track unknowns" : null, ctaClass: "text-amber-600",
+    },
+    {
+      icon: Ban, label: "Access Denied Today", value: totalDenied,
+      sub: topDeniedZone ? `Highest: ${topDeniedZone.zone_name} (${topDeniedZone.denied})` : "No denials",
+      badge: totalDenied > 10 ? "ELEVATED" : null,
+      badgeClass: "bg-orange-100 text-orange-700 border border-orange-200",
+      valueClass: totalDenied > 10 ? "text-orange-600" : "text-neutral-800",
+      cardClass: totalDenied > 10 ? "border-orange-200 bg-orange-50/20" : "border-neutral-100",
+      iconClass: totalDenied > 10 ? "text-orange-500" : "text-neutral-300",
+      clickable: false, filter: "all" as FeedFilter, cta: null, ctaClass: "",
+    },
+  ];
 
   return (
-    <div className={cn("relative overflow-hidden rounded-[4px] border border-black/5", bg, className ?? "h-10 w-10")}>
-      {item.imageSrc ? (
-        <img src={item.imageSrc} alt={item.displayName} className="h-full w-full object-cover" />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          {item.type === "PLATE" ? <CarFront className="h-5 w-5 text-neutral-400" /> : <User className="h-5 w-5 text-neutral-400" />}
-        </div>
-      )}
-
-      {item.type === "PLATE" && item.plateText && (
-        <div className="absolute bottom-1 left-1 right-1 rounded-[2px] bg-black/70 px-1 py-0.5 text-center text-[7px] font-bold tracking-[0.12em] text-white">
-          {item.plateText}
-        </div>
-      )}
+    <div className="grid grid-cols-3 gap-2.5">
+      {cards.map((c) => {
+        const Icon = c.icon;
+        return (
+          <button key={c.label}
+            onClick={() => c.clickable && onFilter(c.filter)}
+            className={cn(
+              "bg-white rounded-[4px] border p-3.5 flex flex-col gap-2 text-left w-full transition-all group",
+              c.cardClass, c.clickable ? "cursor-pointer" : "cursor-default"
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Icon className={cn("w-3.5 h-3.5", c.iconClass)} />
+                <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-neutral-400">{c.label}</span>
+              </div>
+              {c.badge && (
+                <span className={cn("text-[8px] font-black px-1.5 py-0.5 rounded-[2px] uppercase tracking-wide", c.badgeClass)}>
+                  {c.badge}
+                </span>
+              )}
+            </div>
+            <span className={cn("text-4xl font-black tabular-nums leading-none tracking-tight", c.valueClass)}>
+              {c.value}
+            </span>
+            <p className="text-[10px] text-neutral-400 leading-snug truncate">{c.sub}</p>
+            {c.cta && (
+              <div className={cn("flex items-center gap-1 text-[10px] font-bold transition-all group-hover:gap-1.5", c.ctaClass)}>
+                {c.cta} <ArrowUpRight className="w-3 h-3" />
+              </div>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-function ActionBtn({ label }: { label: string }) {
-  const isDestructive = label === "Acknowledge" || label === "Dispatch Guard" || label === "Lock Entry";
-  const isPrimary = label === "Enroll" || label === "Add to Authorized";
-  return (
-    <button
-      onClick={(e) => e.stopPropagation()}
-      className={cn(
-        "whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-semibold border transition-colors",
-        isDestructive && "border-red-300 text-red-600 hover:bg-red-50",
-        isPrimary && "border-[#00775B] text-[#00775B] hover:bg-emerald-50",
-        !isDestructive && !isPrimary && "border-neutral-300 text-neutral-600 hover:bg-neutral-100"
-      )}
-    >
-      {label}
-    </button>
-  );
-}
+// ─── Feed Card ────────────────────────────────────────────────────────────────
 
-function FeedCard({
-  item,
-  selected,
-  onClick,
-}: {
-  item: FeedItem;
-  selected: boolean;
-  onClick: () => void;
-}) {
-  const meta = STATUS_META[item.status];
+function FeedCard({ person, selected, onClick }: { person: FeedPerson; selected: boolean; onClick: () => void }) {
+  const cfg = STATUS_CFG[person.status];
+  const isActionable = ["BLACKLIST", "UNKNOWN", "UNREGISTERED", "VIP"].includes(person.status);
+
   return (
     <div
       onClick={onClick}
       className={cn(
-        "border-l-4 rounded-r-lg border border-l-0 px-3 py-2.5 cursor-pointer transition-all select-none",
-        meta.border,
-        meta.bg,
-        selected ? "border-neutral-300 bg-white shadow-md ring-1 ring-[#00775B]/30" : "border-neutral-200 hover:bg-white hover:shadow-sm"
+        "border-l-4 rounded-r-lg border border-l-0 cursor-pointer transition-all select-none",
+        cfg.borderColor, cfg.rowBg,
+        selected
+          ? "border-[#00775B]/40 shadow-md ring-1 ring-[#00775B]/20 bg-white"
+          : "border-neutral-100 hover:border-neutral-200 hover:shadow-sm hover:bg-white"
       )}
     >
-      <div className="flex items-start gap-2.5">
-        <AvatarBox item={item} />
-        <div className="min-w-0 flex-1">
+      <div className="flex items-stretch">
+        {/* Thumbnail */}
+        <div className="shrink-0 overflow-hidden" style={{ width: 56, height: 56 }}>
+          <IdentityEvidenceMedia
+            kind={person.identType}
+            seed={person.id}
+            imageSrc={person.imageSrc}
+            plateText={person.plateText}
+            className="w-full h-full rounded-none border-0"
+          />
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0 px-2.5 py-2 flex flex-col justify-center gap-0.5">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="truncate text-xs font-bold text-neutral-900">{item.displayName}</span>
-            <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider", meta.badgeBg, meta.badgeText)}>
-              {meta.label}
+            <span className="text-[12px] font-bold text-neutral-900 leading-tight">{person.displayName}</span>
+            <span className={cn("text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-[2px]", cfg.badgeBg, cfg.badgeText)}>
+              {cfg.label}
             </span>
-            {item.recurring && (
-              <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold text-orange-700">
-                Recurring {item.recurringDays}d
+            {person.recurringDays && (
+              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-[2px] bg-orange-100 text-orange-700">
+                ↻ {person.recurringDays}d
+              </span>
+            )}
+            {person.status === "BLACKLIST" && (
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse ml-auto shrink-0" />
+            )}
+          </div>
+          <div className="flex items-center gap-1 flex-wrap">
+            <MapPin className="w-2.5 h-2.5 text-neutral-400 shrink-0" />
+            <span className="text-[10px] text-neutral-500">{person.zone}</span>
+            {person.dwell !== undefined && (
+              <span className={cn("text-[10px] font-semibold ml-auto shrink-0 tabular-nums",
+                person.dwell > 120 ? "text-red-500" : "text-amber-600")}>
+                {fmtDwell(person.dwell)} dwell
+              </span>
+            )}
+            {person.confidence !== undefined && person.dwell === undefined && (
+              <span className={cn("text-[10px] font-bold tabular-nums ml-auto shrink-0",
+                person.confidence >= 95 ? "text-emerald-600" : person.confidence >= 80 ? "text-amber-600" : "text-red-500"
+              )}>
+                {person.confidence}%
               </span>
             )}
           </div>
-          <div className="mt-0.5 flex items-center gap-1 flex-wrap">
-            <MapPin className="h-2.5 w-2.5 shrink-0 text-neutral-400" />
-            <span className="truncate text-[10px] text-neutral-500">{item.camera}</span>
-            {item.confidence !== undefined && <span className="shrink-0 text-[10px] text-neutral-400">· {item.confidence}%</span>}
-            {item.dwell !== undefined && <span className="shrink-0 text-[10px] font-semibold text-amber-600">· dwell {formatDwell(item.dwell)}</span>}
+          <div className="flex items-center gap-1">
+            <Clock className="w-2.5 h-2.5 text-neutral-300 shrink-0" />
+            <span className="text-[10px] text-neutral-400">{person.time} · {person.camera}</span>
           </div>
-          {item.actions.length > 0 && (
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {item.actions.slice(0, 3).map((a) => (
-                <ActionBtn key={a} label={a} />
-              ))}
-            </div>
-          )}
         </div>
-        <span className="mt-0.5 shrink-0 text-[10px] text-neutral-400">{item.time}</span>
+
+        {/* Eye toggle */}
+        <div className="shrink-0 flex items-center pr-2.5">
+          <div className={cn(
+            "w-7 h-7 rounded-[4px] flex items-center justify-center transition-colors border",
+            selected
+              ? "bg-[#00775B] border-[#00775B] text-white"
+              : "border-neutral-200 text-neutral-400 hover:border-[#00775B] hover:text-[#00775B]"
+          )}>
+            {selected ? <X className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </div>
+        </div>
       </div>
+
+      {/* Inline quick actions when selected */}
+      {selected && isActionable && (
+        <div className="border-t border-neutral-100 px-3 py-2 bg-white/80 flex flex-wrap gap-1.5">
+          {person.status === "BLACKLIST" && <>
+            <QuickPill icon={Check}        label="Acknowledge"  variant="danger"  />
+            <QuickPill icon={Radio}        label="Dispatch"     variant="danger"  />
+            <QuickPill icon={Lock}         label="Lock Entry"   variant="neutral" />
+          </>}
+          {(person.status === "UNKNOWN" || person.status === "UNREGISTERED") && <>
+            <QuickPill icon={UserPlus}     label="Enroll"       variant="primary" />
+            <QuickPill icon={BookmarkPlus} label="Watchlist"    variant="neutral" />
+            <QuickPill icon={Zap}          label="Escalate"     variant="danger"  />
+          </>}
+          {person.status === "VIP" && <>
+            <QuickPill icon={Radio}        label="Notify Host"  variant="primary" />
+          </>}
+        </div>
+      )}
     </div>
   );
 }
 
-function DetailCard({
-  title,
-  item,
-  accent = "neutral",
-  onOpen,
+function QuickPill({ icon: Icon, label, variant }: { icon: React.ElementType; label: string; variant: "primary" | "danger" | "neutral" }) {
+  const [done, setDone] = useState(false);
+  const cls = { primary: "border-[#00775B]/40 text-[#00775B] hover:bg-[#00775B]/5", danger: "border-red-300 text-red-600 hover:bg-red-50", neutral: "border-neutral-200 text-neutral-600 hover:bg-neutral-50" }[variant];
+  return done ? (
+    <span className="flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold bg-emerald-50 border border-emerald-200 text-emerald-700">
+      <Check className="w-2.5 h-2.5" /> Done
+    </span>
+  ) : (
+    <button onClick={e => { e.stopPropagation(); setDone(true); setTimeout(() => setDone(false), 3000); }}
+      className={cn("flex items-center gap-1 px-2 py-1 rounded border text-[10px] font-semibold transition-colors", cls)}>
+      <Icon className="w-2.5 h-2.5" /> {label}
+    </button>
+  );
+}
+
+// ─── Action Button with confirm flow ─────────────────────────────────────────
+
+function ActionBtn({
+  icon: Icon, label, variant, stateKey, states, setAction, successMsg, confirmMsg,
 }: {
-  title: string;
-  item: FeedItem;
-  accent?: "neutral" | "alert" | "watch";
-  onOpen?: () => void;
+  icon: React.ElementType; label: string; variant: "primary" | "danger" | "warning" | "neutral";
+  stateKey: string; states: Record<string, ActionState>;
+  setAction: (k: string, s: ActionState) => void;
+  successMsg: string; confirmMsg: string;
 }) {
-  const tone =
-    accent === "alert"
-      ? "border-red-200 bg-red-50/60"
-      : accent === "watch"
-      ? "border-amber-200 bg-amber-50/50"
-      : "border-neutral-200 bg-white";
+  const state = states[stateKey] ?? "idle";
+  const cls = {
+    primary: "border-[#00775B] text-[#00775B] hover:bg-[#00775B]/5",
+    danger:  "border-red-400 text-red-600 hover:bg-red-50",
+    warning: "border-orange-400 text-orange-600 hover:bg-orange-50",
+    neutral: "border-neutral-200 text-neutral-600 hover:bg-neutral-50",
+  }[variant];
+
+  if (state === "success") return (
+    <div className="flex items-start gap-1.5 px-2.5 py-1.5 rounded-[4px] bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold w-full">
+      <Check className="w-3 h-3 shrink-0 mt-0.5" />
+      <span>{successMsg}</span>
+    </div>
+  );
+
+  if (state === "confirming") return (
+    <div className="flex items-center gap-2 flex-wrap px-0.5">
+      <span className="text-[10px] text-neutral-700 font-medium">{confirmMsg}</span>
+      <button onClick={() => setAction(stateKey, "success")}
+        className="px-2.5 py-1 rounded-[4px] bg-[#021d18] text-white text-[10px] font-bold hover:bg-neutral-900 transition-colors">
+        Confirm
+      </button>
+      <button onClick={() => setAction(stateKey, "idle")}
+        className="px-2 py-1 rounded-[4px] border border-neutral-200 text-neutral-500 text-[10px] font-semibold hover:bg-neutral-50 transition-colors">
+        Cancel
+      </button>
+    </div>
+  );
 
   return (
-    <div className={cn("rounded-[4px] border p-4 shadow-sm", tone)}>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">{title}</p>
-        <button onClick={onOpen} className="text-[10px] font-semibold text-[#00775B] hover:text-[#00956D]">
-          Open Detail
-        </button>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-[120px,1fr]">
-        <AvatarBox item={item} className="h-[108px] w-full rounded-[4px]" />
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-sm font-bold text-neutral-900">{item.displayName}</h3>
-            <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase", STATUS_META[item.status].badgeBg, STATUS_META[item.status].badgeText)}>
-              {STATUS_META[item.status].label}
-            </span>
-          </div>
-          {item.subLabel && <p className="mt-1 text-[11px] text-neutral-500">{item.subLabel}</p>}
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Camera</p>
-              <p className="mt-1 truncate text-[11px] font-semibold text-neutral-800">{item.camera}</p>
-            </div>
-            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Confidence</p>
-              <p className="mt-1 text-[11px] font-semibold text-neutral-800">{item.confidence ?? "--"}%</p>
-            </div>
-            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Last Seen</p>
-              <p className="mt-1 text-[11px] font-semibold text-neutral-800">{item.time}</p>
-            </div>
-            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
-              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Journey</p>
-              <p className="mt-1 text-[11px] font-semibold text-neutral-800">{JOURNEY_DATA[item.id]?.length ?? 1} stops</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    <button onClick={() => setAction(stateKey, "confirming")}
+      className={cn("flex items-center gap-1.5 px-2.5 py-1.5 rounded-[4px] border text-[10px] font-semibold transition-colors", cls)}>
+      <Icon className="w-3 h-3" /> {label}
+    </button>
   );
 }
 
-function TodaySummary() {
-  const rows = [
-    { label: "Blacklist Matches", value: 1, note: "1 unacknowledged", dot: "bg-red-500", valueColor: "text-red-600" },
-    { label: "Unknowns at Entry", value: 11, note: "3 recurring", dot: "bg-amber-400", valueColor: "text-amber-600" },
-    { label: "Access Denials", value: 4, note: "", dot: "bg-orange-400", valueColor: "text-orange-600" },
-    { label: "VIP Detections", value: 2, note: "1 on site now", dot: "bg-yellow-400", valueColor: "text-yellow-600" },
-    { label: "Total Identifications", value: 2840, note: "97.2% accuracy", dot: "bg-emerald-500", valueColor: "text-emerald-700" },
-  ];
+// ─── Journey SVG ──────────────────────────────────────────────────────────────
+
+function JourneyMapSVG({ stops }: { stops: JourneyStop[] }) {
+  if (!stops.length) return null;
+  const pad = 14, w = 100;
+  const step = stops.length === 1 ? 0 : (w - pad * 2) / (stops.length - 1);
 
   return (
-    <div className="rounded-[4px] border border-neutral-200 bg-white p-4 shadow-sm">
-      <div className="mb-3">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Operational Summary</p>
-      </div>
-      <div className="grid gap-3 lg:grid-cols-[1.2fr,0.8fr,0.8fr]">
-        <div className="divide-y divide-neutral-100 rounded-[4px] border border-neutral-100 bg-neutral-50/40 px-3">
-          {rows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between py-2.5">
-              <div className="flex items-center gap-2">
-                <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", row.dot)} />
-                <span className="text-xs text-neutral-700">{row.label}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={cn("text-sm font-bold tabular-nums", row.valueColor)}>{row.value.toLocaleString()}</span>
-                {row.note && <span className="text-[10px] text-neutral-400">{row.note}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
+    <div className="w-full rounded-lg bg-neutral-950 border border-neutral-800 overflow-hidden" style={{ height: 88 }}>
+      <svg viewBox="0 0 100 88" preserveAspectRatio="xMidYMid meet" className="w-full h-full">
+        {/* Background grid */}
+        {[22, 44, 66].map(y => (
+          <line key={y} x1="0" y1={y} x2="100" y2={y} stroke="rgba(255,255,255,0.03)" strokeWidth="0.5" />
+        ))}
 
-        <div className="rounded-[4px] border border-red-200 bg-red-50 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-red-500">Most Active Threat Zone</p>
-          <p className="mt-1 text-sm font-bold text-red-700">Main Lobby</p>
-          <p className="mt-1 text-[11px] text-red-500">1 blacklist hit · 12 access denials today</p>
-        </div>
-
-        <div className="rounded-[4px] border border-amber-200 bg-amber-50 p-3">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Longest Unknown Dwell</p>
-          <p className="mt-1 text-sm font-bold text-amber-800">Unknown #88 · South Entrance</p>
-          <p className="mt-1 text-[11px] text-amber-600">4m 12s at entry point · recurring over 4 days</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PersonDetail({
-  item,
-  onClose,
-}: {
-  item: FeedItem;
-  onClose: () => void;
-}) {
-  const meta = STATUS_META[item.status];
-  const journey = JOURNEY_DATA[item.id];
-
-  return (
-    <div className="flex h-full flex-col">
-      <div className={cn("flex items-start gap-3 border-b border-neutral-200 p-4", meta.bg)}>
-        <AvatarBox item={item} className="h-20 w-20 rounded-[4px]" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-bold text-neutral-900">{item.displayName}</span>
-            <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase", meta.badgeBg, meta.badgeText)}>
-              {meta.label}
-            </span>
-          </div>
-          {item.subLabel && <p className="mt-0.5 text-[11px] text-neutral-500">{item.subLabel}</p>}
-          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
-            {item.confidence !== undefined && (
-              <span className="text-[10px] text-neutral-500">
-                Match: <strong>{item.confidence}%</strong>
-              </span>
-            )}
-            <span className="text-[10px] text-neutral-400">·</span>
-            <span className="text-[10px] text-neutral-500">
-              {item.camera} · {item.time}
-            </span>
-          </div>
-          {item.recurring && <p className="mt-1 text-[10px] font-semibold text-orange-600">Recurring over {item.recurringDays} of last 5 days</p>}
-        </div>
-        <button onClick={onClose} className="shrink-0 rounded-md p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-600">
-          <X className="h-4 w-4" />
-        </button>
-      </div>
-
-      {(item.status === "BLACKLIST" || item.status === "UNREGISTERED") && item.actions.length > 0 && (
-        <div className="mx-4 mt-3 rounded-[4px] border border-red-200 bg-red-50 p-3">
-          <div className="mb-2 flex items-center gap-2">
-            <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-red-700">Active Alert</span>
-            <span className="ml-auto rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">CRITICAL</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {item.actions.map((a) => (
-              <button key={a} className="rounded-[4px] border border-red-300 px-2.5 py-1 text-[11px] font-semibold text-red-700 transition-colors hover:bg-red-100">
-                {a}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {item.status === "UNKNOWN" && item.actions.length > 0 && (
-        <div className="mx-4 mt-3 rounded-[4px] border border-amber-200 bg-amber-50 p-3">
-          <div className="mb-2 flex items-center gap-2">
-            <User className="h-3.5 w-3.5 text-amber-600" />
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Actions</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {item.actions.map((a) => (
-              <button
-                key={a}
-                className={cn(
-                  "rounded-[4px] border px-2.5 py-1 text-[11px] font-semibold transition-colors",
-                  a === "Enroll" ? "border-[#00775B] text-[#00775B] hover:bg-emerald-50" : "border-amber-300 text-amber-700 hover:bg-amber-100"
-                )}
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {journey && (
-        <div className="px-4 pb-2 pt-4">
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Journey Timeline</p>
-          <div>
-            {journey.map((stop, i) => (
-              <div key={i} className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", stop.status === "ACTIVE" ? "bg-red-500 ring-2 ring-red-200" : "bg-neutral-300")} />
-                  {i < journey.length - 1 && <div className="my-1 w-px flex-1 bg-neutral-200" style={{ minHeight: 20 }} />}
-                </div>
-                <div className="min-w-0 pb-3">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-xs font-semibold text-neutral-800">{stop.time}</span>
-                    <span className="text-xs text-neutral-600">{stop.camera}</span>
-                    <span className="text-[10px] text-neutral-400">{stop.dwell}</span>
-                    {stop.status === "ACTIVE" && <span className="text-[9px] font-bold uppercase text-red-600">here now</span>}
-                  </div>
-                  {stop.note && <p className="mt-0.5 text-[10px] text-neutral-500">{stop.note}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!journey && (
-        <div className="px-4 pb-2 pt-4">
-          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Last Sighting</p>
-          <div className="flex items-center gap-2 text-xs text-neutral-600">
-            <MapPin className="h-3.5 w-3.5 text-neutral-400" />
-            {item.camera} · {item.time}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-auto border-t border-neutral-100 px-4 pb-4 pt-3">
-        <button className="flex h-8 w-full items-center justify-center gap-2 rounded-[4px] border border-neutral-200 text-xs font-semibold text-neutral-600 transition-all hover:border-[#00775B]/30 hover:bg-neutral-50">
-          <Navigation className="h-3.5 w-3.5 text-neutral-400" />
-          Track Journey
-          <ChevronRight className="ml-auto h-3.5 w-3.5 text-neutral-400" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ZoneMap({ selectedCameraId }: { selectedCameraId?: string }) {
-  const pathIds = selectedCameraId ? PATHS[selectedCameraId] ?? [selectedCameraId] : [];
-
-  return (
-    <div className="relative w-full" style={{ paddingBottom: "66%" }}>
-      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
-        <rect x="5" y="5" width="90" height="90" rx="2" fill="#F9FAFB" stroke="#E5E7EB" strokeWidth="0.6" />
-        <line x1="5" y1="47" x2="95" y2="47" stroke="#E5E7EB" strokeWidth="0.4" strokeDasharray="3,2" />
-        <line x1="50" y1="5" x2="50" y2="47" stroke="#E5E7EB" strokeWidth="0.4" strokeDasharray="3,2" />
-        <text x="27" y="70" fontSize="3" fill="#D1D5DB" textAnchor="middle" fontFamily="sans-serif">WEST</text>
-        <text x="72" y="70" fontSize="3" fill="#D1D5DB" textAnchor="middle" fontFamily="sans-serif">EAST</text>
-        <text x="27" y="28" fontSize="3" fill="#D1D5DB" textAnchor="middle" fontFamily="sans-serif">GARAGE</text>
-
-        {pathIds.map((id, i) => {
-          if (i === 0) return null;
-          const from = ZONE_NODES.find((n) => n.id === pathIds[i - 1]);
-          const to = ZONE_NODES.find((n) => n.id === id);
-          if (!from || !to) return null;
-          return (
-            <line
-              key={id}
-              x1={from.x}
-              y1={from.y}
-              x2={to.x}
-              y2={to.y}
-              stroke="#00775B"
-              strokeWidth="0.8"
-              strokeDasharray="3,1.5"
-              opacity="0.8"
-            />
-          );
+        {/* Connection line */}
+        {stops.length > 1 && stops.map((_, i) => {
+          if (!i) return null;
+          const x1 = pad + (i - 1) * step, x2 = pad + i * step;
+          return <line key={i} x1={x1} y1={44} x2={x2} y2={44} stroke="#00775B" strokeWidth="1.5" strokeDasharray="4,2" opacity="0.65" />;
         })}
 
-        {ZONE_NODES.map((node) => {
-          const color = LEVEL_COLOR[node.level] ?? "#9CA3AF";
-          const isSelected = node.id === selectedCameraId;
-          const inPath = pathIds.includes(node.id);
-          const dimmed = selectedCameraId && !inPath && !isSelected;
+        {/* Arrow heads */}
+        {stops.length > 1 && stops.map((_, i) => {
+          if (!i) return null;
+          const mx = pad + (i - 0.5) * step;
+          return <polygon key={`a${i}`} points={`${mx - 1},${44 - 1.8} ${mx + 2},${44} ${mx - 1},${44 + 1.8}`} fill="#00775B" opacity="0.55" />;
+        })}
 
+        {/* Nodes */}
+        {stops.map((stop, i) => {
+          const x = pad + i * step;
+          const isCurr = stop.isCurrent;
+          const fill = isCurr ? "#DC2626" : i === 0 ? "#6B7280" : "#00775B";
           return (
-            <g key={node.id} transform={`translate(${node.x},${node.y})`} opacity={dimmed ? 0.25 : 1}>
-              {isSelected && (
-                <circle r="5.5" fill={color} opacity="0.18">
-                  <animate attributeName="r" values="4;6.5;4" dur="2s" repeatCount="indefinite" />
-                  <animate attributeName="opacity" values="0.18;0.35;0.18" dur="2s" repeatCount="indefinite" />
+            <g key={i}>
+              {isCurr && (
+                <circle cx={x} cy={44} r="8" fill="#DC2626" opacity="0.12">
+                  <animate attributeName="r" values="6;10;6" dur="2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.12;0.25;0.12" dur="2s" repeatCount="indefinite" />
                 </circle>
               )}
-              <circle r={isSelected ? 3 : 2.2} fill={color} />
-              <text y="6" fontSize="2.2" fill="#6B7280" textAnchor="middle" fontFamily="sans-serif">
-                {node.label}
+              <circle cx={x} cy={44} r={isCurr ? 5 : 3.5} fill={fill} stroke="rgba(255,255,255,0.15)" strokeWidth="0.8" />
+              {isCurr && <circle cx={x} cy={44} r="2.5" fill="white" opacity="0.85">
+                <animate attributeName="opacity" values="0.85;0.35;0.85" dur="1.5s" repeatCount="indefinite" />
+              </circle>}
+              {/* Zone label */}
+              <text x={x} y={32} textAnchor="middle" fontSize="4" fill="rgba(255,255,255,0.55)" fontFamily="sans-serif">
+                {stop.zone.length > 11 ? stop.zone.slice(0, 10) + "…" : stop.zone}
+              </text>
+              {/* Time */}
+              <text x={x} y={57} textAnchor="middle" fontSize="3.5" fill="rgba(255,255,255,0.35)" fontFamily="monospace">
+                {stop.time}
+              </text>
+              {/* Dwell */}
+              <text x={x} y={64} textAnchor="middle" fontSize="3" fill={isCurr ? "#FCA5A5" : "rgba(255,255,255,0.25)"} fontFamily="monospace">
+                {stop.dwellText}
               </text>
             </g>
           );
@@ -682,88 +494,278 @@ function ZoneMap({ selectedCameraId }: { selectedCameraId?: string }) {
   );
 }
 
-const TOP_JOURNEYS = [
-  { id: "f1", name: "BL-003", cameras: 4, duration: "21m", status: "BLACKLIST" as MatchStatus, note: "active alert" },
-  { id: "f2", name: "Unknown #88", cameras: 2, duration: "32m", status: "UNKNOWN" as MatchStatus, note: "recurring" },
-  { id: "f6", name: "UP80MN1123", cameras: 3, duration: "18m", status: "UNREGISTERED" as MatchStatus, note: "blocked" },
-  { id: "f5", name: "KA05MJ4421", cameras: 3, duration: "14m", status: "AUTHORIZED" as MatchStatus, note: "authorized" },
-];
+// ─── Entity Detail Panel ──────────────────────────────────────────────────────
 
-function JourneyDefaultView({ onSelect }: { onSelect: (id: string) => void }) {
-  return (
-    <div className="rounded-[4px] border border-neutral-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex items-center gap-2">
-        <Waypoints className="h-4 w-4 text-[#00775B]" />
-        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Journey Map</p>
-      </div>
-      <div className="space-y-1.5">
-        {TOP_JOURNEYS.map((j) => {
-          const meta = STATUS_META[j.status];
-          return (
-            <div
-              key={j.id}
-              onClick={() => onSelect(j.id)}
-              className="group flex cursor-pointer items-center gap-2 rounded-[4px] border border-neutral-200 px-2.5 py-2 transition-all hover:border-[#00775B]/30 hover:bg-emerald-50/30"
-            >
-              <span className={cn("flex-1 truncate text-xs font-semibold", meta.textColor)}>{j.name}</span>
-              <span className="shrink-0 text-[10px] text-neutral-400">
-                {j.cameras} cams · {j.duration}
-              </span>
-              {j.note && <span className="shrink-0 text-[9px] text-neutral-500">{j.note}</span>}
-              <ChevronRight className="h-3 w-3 shrink-0 text-neutral-300 transition-colors group-hover:text-[#00775B]" />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+function EntityDetailPanel({ person, onClose }: { person: FeedPerson; onClose: () => void }) {
+  const cfg = STATUS_CFG[person.status];
+  const [actionStates, setActionStates] = useState<Record<string, ActionState>>({});
+  const journey = JOURNEY_DATA[person.id] ?? [];
+  const isLPR = person.identType === "PLATE";
+  const isBlacklist = person.status === "BLACKLIST";
+  const isUnknown = person.status === "UNKNOWN" || person.status === "UNREGISTERED";
+  const isVIP = person.status === "VIP";
+  const isAuthorised = person.status === "WHITELIST" || person.status === "AUTHORIZED";
 
-function JourneyMapModal({
-  open,
-  onClose,
-  selectedCameraId,
-}: {
-  open: boolean;
-  onClose: () => void;
-  selectedCameraId?: string;
-}) {
-  if (!open) return null;
+  const setAction = (key: string, state: ActionState) => {
+    setActionStates(prev => ({ ...prev, [key]: state }));
+    if (state === "success") setTimeout(() => setActionStates(prev => ({ ...prev, [key]: "idle" })), 4000);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
-      <div className="w-full max-w-4xl rounded-[4px] border border-neutral-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Waypoints className="h-4 w-4 text-[#00775B]" />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">Journey Map</span>
+    <div className="bg-white rounded-[4px] border border-neutral-100 shadow-sm overflow-hidden">
+
+      {/* Panel header */}
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-100 bg-neutral-50/50">
+        {isLPR ? <Car className="w-3.5 h-3.5 text-[#00775B]" /> : <Fingerprint className="w-3.5 h-3.5 text-[#00775B]" />}
+        <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">
+          {isLPR ? "Vehicle Detail" : "Entity Detail"}
+        </span>
+        <button onClick={onClose} className="ml-auto p-1 rounded hover:bg-neutral-200 text-neutral-400 transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* Media + identity block */}
+      <div className="flex gap-3 p-4 border-b border-neutral-100">
+        <IdentityEvidenceMedia
+          kind={person.identType}
+          seed={person.id}
+          imageSrc={person.imageSrc}
+          plateText={person.plateText}
+          confidence={person.confidence}
+          label={person.displayName}
+          sublabel={person.zone}
+          live={isBlacklist || isUnknown}
+          size="sm"
+          className={isLPR ? "w-[130px] h-[76px]" : "w-[96px] h-[96px]"}
+        />
+
+        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+          {/* Name + badge */}
+          <div className="flex items-start gap-2 flex-wrap">
+            <span className="text-[15px] font-black text-neutral-900 leading-tight">{person.displayName}</span>
+            <span className={cn("text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-[2px] shrink-0 mt-0.5", cfg.badgeBg, cfg.badgeText)}>
+              {cfg.label}
+            </span>
           </div>
-          <button onClick={onClose} className="rounded-[4px] p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700">
-            <X className="h-4 w-4" />
-          </button>
+
+          {person.subLabel && <p className="text-[11px] text-neutral-500 leading-snug">{person.subLabel}</p>}
+
+          {/* Info grid */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-1">
+            {person.confidence !== undefined && (
+              <InfoCell label={isLPR ? "OCR Confidence" : "Match Confidence"} value={`${person.confidence}%`}
+                valueClass={person.confidence >= 95 ? "text-emerald-600" : person.confidence >= 80 ? "text-amber-600" : "text-red-500"} />
+            )}
+            <InfoCell label="Zone" value={person.zone} />
+            <InfoCell label="Camera" value={person.camera} />
+            <InfoCell label="Detected" value={person.time} />
+            {person.dwell !== undefined && (
+              <InfoCell label="Dwell Time" value={fmtDwell(person.dwell)}
+                valueClass={person.dwell > 120 ? "text-red-600 font-bold" : "text-amber-600 font-bold"} />
+            )}
+            {person.recurringDays && (
+              <InfoCell label="Recurring" value={`${person.recurringDays} of last 5 days`} valueClass="text-orange-600 font-bold" />
+            )}
+            {person.department && <InfoCell label="Department" value={person.department} />}
+            {person.employeeId && <InfoCell label="Employee ID" value={person.employeeId} />}
+            {person.enrollDate && <InfoCell label="Enrolled" value={person.enrollDate} />}
+            {person.totalAppearances && <InfoCell label="This Month" value={`${person.totalAppearances} detections`} />}
+          </div>
         </div>
-        <div className="p-4">
-          <div className="overflow-hidden rounded-[4px] border border-neutral-200 bg-neutral-50">
-            <ZoneMap selectedCameraId={selectedCameraId} />
+      </div>
+
+      {/* Actions */}
+      {!isAuthorised && (
+        <div className="px-4 py-3 border-b border-neutral-100 space-y-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 mb-2">Respond</p>
+          <div className="flex flex-col gap-2">
+            {isBlacklist && <>
+              <ActionBtn icon={Check}    label="Acknowledge Alert"  variant="danger"  stateKey="ack"      states={actionStates} setAction={setAction}
+                successMsg={`Alert acknowledged — logged to incident report at ${person.time}`}
+                confirmMsg="Acknowledge this blacklist match and log to incident report?" />
+              <ActionBtn icon={Radio}   label="Dispatch Guard"     variant="danger"  stateKey="dispatch" states={actionStates} setAction={setAction}
+                successMsg={`Guard dispatched to ${person.zone} — ETA 2 minutes`}
+                confirmMsg={`Send nearest guard to ${person.zone}?`} />
+              <ActionBtn icon={Lock}    label="Lock Entry Point"   variant="warning" stateKey="lock"     states={actionStates} setAction={setAction}
+                successMsg={`${person.zone} is now LOCKED — all access suspended`}
+                confirmMsg={`Lock all access at ${person.zone}? This will block all entries.`} />
+            </>}
+            {isUnknown && <>
+              <ActionBtn icon={UserPlus}     label="Enroll Identity"    variant="primary" stateKey="enroll"   states={actionStates} setAction={setAction}
+                successMsg="Enrollment form opened — assign name, department and access level"
+                confirmMsg="Start identity enrollment for this individual?" />
+              <ActionBtn icon={BookmarkPlus} label="Add to Watchlist"   variant="neutral" stateKey="watch"    states={actionStates} setAction={setAction}
+                successMsg="Added to active watchlist — you will be alerted on next detection"
+                confirmMsg="Add this individual to the security watchlist?" />
+              <ActionBtn icon={Shield}       label="Mark as Visitor"    variant="neutral" stateKey="visitor"  states={actionStates} setAction={setAction}
+                successMsg="Marked as authorised visitor — temporary access badge issued"
+                confirmMsg="Grant temporary visitor access to this individual?" />
+              <ActionBtn icon={Zap}          label="Escalate to Supervisor" variant="danger"  stateKey="esc"  states={actionStates} setAction={setAction}
+                successMsg="Escalated — security supervisor notified via SMS and app push"
+                confirmMsg="Escalate this case to the security supervisor?" />
+            </>}
+            {isVIP && <>
+              <ActionBtn icon={Radio}       label="Notify Host"     variant="primary" stateKey="notify" states={actionStates} setAction={setAction}
+                successMsg="Host notified via SMS and app push notification — awaiting acknowledgement"
+                confirmMsg="Send VIP arrival notification to assigned host?" />
+              <ActionBtn icon={Navigation2} label="Log on Site"     variant="neutral" stateKey="log"    states={actionStates} setAction={setAction}
+                successMsg="VIP presence logged in site register with timestamp"
+                confirmMsg="Log VIP presence in the site register?" />
+            </>}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            {[
-              { color: "bg-red-500", label: "Critical" },
-              { color: "bg-amber-400", label: "Unknown" },
-              { color: "bg-emerald-600", label: "Normal" },
-              { color: "bg-neutral-400", label: "Offline" },
-            ].map((l) => (
-              <div key={l.label} className="flex items-center gap-1">
-                <span className={cn("h-2 w-2 rounded-full", l.color)} />
-                <span className="text-[9px] text-neutral-500">{l.label}</span>
+        </div>
+      )}
+
+      {/* Journey Map */}
+      {journey.length > 0 && (
+        <div className="px-4 py-3">
+          <div className="flex items-center gap-2 mb-3">
+            <Navigation2 className="w-3.5 h-3.5 text-[#00775B]" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Journey — Today</span>
+            <span className="ml-auto text-[10px] text-neutral-400 tabular-nums">
+              {journey.length} stop{journey.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {/* SVG path map */}
+          <JourneyMapSVG stops={journey} />
+
+          {/* Timeline list */}
+          <div className="mt-3 space-y-0">
+            {journey.map((stop, i) => (
+              <div key={i} className={cn(
+                "flex items-start gap-3 py-2 px-2 rounded-lg transition-colors",
+                stop.isCurrent ? "bg-red-50/70" : "hover:bg-neutral-50"
+              )}>
+                {/* Dot + line */}
+                <div className="flex flex-col items-center shrink-0 pt-1" style={{ width: 16 }}>
+                  <div className={cn(
+                    "w-3 h-3 rounded-full border-2 border-white shadow",
+                    stop.isCurrent ? "bg-red-500 shadow-red-200" : i === 0 ? "bg-neutral-300" : "bg-[#00775B]"
+                  )} />
+                  {i < journey.length - 1 && (
+                    <div className="w-px flex-1 bg-neutral-200 my-1" style={{ minHeight: 12 }} />
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0 pb-1">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-[11px] font-bold text-neutral-800">{stop.zone}</span>
+                    {stop.isCurrent && (
+                      <span className="flex items-center gap-0.5 text-[9px] font-bold text-red-600 uppercase">
+                        <span className="w-1 h-1 rounded-full bg-red-500 animate-pulse" /> Live
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-neutral-400 flex-wrap">
+                    <span className="tabular-nums font-mono">{stop.time}</span>
+                    <span>·</span>
+                    <span>dwell {stop.dwellText}</span>
+                    <span>·</span>
+                    <span className="text-neutral-300">{stop.camera}</span>
+                    {stop.linkedPlate && (
+                      <><span>·</span><span className="text-neutral-500">🚗 {stop.linkedPlate}</span></>
+                    )}
+                  </div>
+                  {stop.alertNote && (
+                    <p className={cn("text-[10px] mt-0.5 font-medium",
+                      stop.alertNote.includes("ACTIVE") || stop.alertNote.includes("BLOCKED")
+                        ? "text-red-500" : "text-amber-600"
+                    )}>
+                      {stop.alertNote}
+                    </p>
+                  )}
+                </div>
+
+                <span className="text-[10px] text-neutral-300 shrink-0 tabular-nums font-mono">{stop.time}</span>
               </div>
             ))}
           </div>
+
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-neutral-100">
+            <span className="text-[10px] text-neutral-400">
+              {journey.length} cameras · {journey[0].time} → {journey[journey.length - 1].time}
+            </span>
+            <button className="flex items-center gap-1 text-[10px] font-semibold text-[#00775B] hover:underline transition-colors">
+              Export <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
+
+function InfoCell({ label, value, valueClass }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div>
+      <p className="text-[9px] text-neutral-400 uppercase tracking-wider font-bold">{label}</p>
+      <p className={cn("text-[11px] font-semibold text-neutral-700 mt-0.5", valueClass)}>{value}</p>
+    </div>
+  );
+}
+
+// ─── Default right panel ──────────────────────────────────────────────────────
+
+function TodaySummary() {
+  const status = IDENTITY_LIVE_STATUS;
+  const totalDenied = IDENTITY_ZONES.reduce((s, z) => s + z.denied, 0);
+
+  return (
+    <div className="bg-white rounded-[4px] border border-neutral-100 shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-100 bg-neutral-50/50">
+        <Shield className="w-3.5 h-3.5 text-[#00775B]" />
+        <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Today's Summary</span>
+        <span className="ml-auto flex items-center gap-1 text-[10px] text-neutral-400">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> 3s ago
+        </span>
+      </div>
+
+      <div className="divide-y divide-neutral-50">
+        {[
+          { dot: "bg-red-500",    label: "Blacklist Matches",     value: status.blacklist_matches, sub: "1 unacknowledged",  vc: "text-red-600"    },
+          { dot: "bg-amber-400",  label: "Unknowns at Entry",     value: UNKNOWN_TRACKERS.length,  sub: "2 recurring",       vc: "text-amber-600"  },
+          { dot: "bg-orange-400", label: "Access Denials Today",  value: totalDenied,              sub: "Main Lobby highest", vc: "text-orange-600" },
+          { dot: "bg-yellow-400", label: "VIP Detections",        value: status.vip_matches,       sub: "1 on site now",     vc: "text-yellow-600" },
+          { dot: "bg-emerald-500",label: "Total Identifications", value: 2840,                     sub: "97.2% accuracy",    vc: "text-emerald-700"},
+        ].map(r => (
+          <div key={r.label} className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-2">
+              <span className={cn("w-2 h-2 rounded-full shrink-0", r.dot)} />
+              <span className="text-xs text-neutral-700">{r.label}</span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className={cn("text-base font-black tabular-nums leading-none", r.vc)}>{r.value.toLocaleString()}</span>
+              <span className="text-[10px] text-neutral-400">{r.sub}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 p-3 border-t border-neutral-100 bg-neutral-50/30">
+        <div className="bg-red-50 rounded-lg p-2.5 border border-red-100">
+          <p className="text-[9px] font-bold text-red-400 uppercase tracking-wider">Most Active Threat Zone</p>
+          <p className="text-xs font-bold text-red-700 mt-0.5">Main Lobby</p>
+          <p className="text-[10px] text-red-500 mt-0.5">1 blacklist · 12 denials</p>
+        </div>
+        <div className="bg-amber-50 rounded-lg p-2.5 border border-amber-100">
+          <p className="text-[9px] font-bold text-amber-500 uppercase tracking-wider">Longest Unknown Dwell</p>
+          <p className="text-xs font-bold text-amber-800 mt-0.5">Unknown #88</p>
+          <p className="text-[10px] text-amber-600 mt-0.5">South Entrance · 4m 12s</p>
+        </div>
+      </div>
+
+      <p className="px-4 py-3 text-[10px] text-neutral-400 text-center border-t border-neutral-100">
+        Select a detection from the feed to view full entity detail and journey map
+      </p>
+    </div>
+  );
+}
+
+// ─── Main View ────────────────────────────────────────────────────────────────
+
+type SortMode = "newest" | "priority";
 
 interface Props {
   terminology: IdentityTerminology;
@@ -774,204 +776,127 @@ interface Props {
   onJourneyClick?: () => void;
 }
 
-export const IdentityMonitoringView = ({
-  terminology: _terminology,
-  timeRange: _timeRange,
-  activeApp: _activeApp,
-  onEntityClick,
-  onCameraClick,
-  onJourneyClick,
-}: Props) => {
-  const [selectedId, setSelectedId] = useState<string | null>("f1");
+export const IdentityMonitoringView = ({ terminology: _t }: Props) => {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
-  const [journeyMapOpen, setJourneyMapOpen] = useState(false);
+  const [sort, setSort] = useState<SortMode>("priority");
 
-  const selectedItem = FEED_ITEMS.find((f) => f.id === selectedId) ?? null;
-  const sticky = FEED_ITEMS.filter((f) => f.isSticky);
-  const live = FEED_ITEMS.filter((f) => !f.isSticky);
+  const status = IDENTITY_LIVE_STATUS;
+  const selectedPerson = FEED_PEOPLE.find(p => p.id === selectedId) ?? null;
 
-  function filterItem(item: FeedItem): boolean {
-    switch (feedFilter) {
-      case "threats":
-        return item.status === "BLACKLIST" || item.status === "UNREGISTERED";
-      case "unknowns":
-        return item.status === "UNKNOWN" || item.status === "UNREGISTERED";
-      case "vip":
-        return item.status === "VIP";
-      case "authorized":
-        return item.status === "WHITELIST" || item.status === "AUTHORIZED";
-      default:
-        return true;
-    }
-  }
+  const SEV: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
 
-  const filteredSticky = sticky.filter(filterItem);
-  const filteredLive = live.filter(filterItem);
+  const filteredFeed = FEED_PEOPLE
+    .filter(p => {
+      switch (feedFilter) {
+        case "threats":    return p.status === "BLACKLIST" || p.status === "UNREGISTERED";
+        case "unknowns":   return p.status === "UNKNOWN"   || p.status === "UNREGISTERED";
+        case "vip":        return p.status === "VIP";
+        case "authorized": return p.status === "WHITELIST"  || p.status === "AUTHORIZED";
+        default:           return true;
+      }
+    })
+    .sort((a, b) =>
+      sort === "priority"
+        ? (SEV[a.severity ?? "LOW"] ?? 3) - (SEV[b.severity ?? "LOW"] ?? 3)
+        : b.time.localeCompare(a.time)
+    );
 
-  const primaryEntity = useMemo(
-    () => FEED_ITEMS.find((f) => f.type === "FACE" && (f.status === "BLACKLIST" || f.status === "UNKNOWN")) ?? FEED_ITEMS.find((f) => f.type === "FACE")!,
-    []
-  );
-  const primaryVehicle = useMemo(
-    () => FEED_ITEMS.find((f) => f.type === "PLATE" && f.status === "UNREGISTERED") ?? FEED_ITEMS.find((f) => f.type === "PLATE")!,
-    []
-  );
-
-  const FILTERS: { id: FeedFilter; label: string; count: number }[] = [
-    { id: "all", label: "All", count: FEED_ITEMS.length },
-    { id: "threats", label: "Threats", count: FEED_ITEMS.filter((f) => f.status === "BLACKLIST" || f.status === "UNREGISTERED").length },
-    { id: "unknowns", label: "Unknowns", count: FEED_ITEMS.filter((f) => f.status === "UNKNOWN" || f.status === "UNREGISTERED").length },
-    { id: "vip", label: "VIP", count: FEED_ITEMS.filter((f) => f.status === "VIP").length },
-    { id: "authorized", label: "Authorized", count: FEED_ITEMS.filter((f) => f.status === "WHITELIST" || f.status === "AUTHORIZED").length },
-  ];
-
-  const mapLegend = [
-    { color: "bg-red-500", label: "Critical" },
-    { color: "bg-amber-400", label: "Unknown" },
-    { color: "bg-emerald-600", label: "Normal" },
-    { color: "bg-neutral-400", label: "Offline" },
+  const TABS: { id: FeedFilter; label: string; count: number }[] = [
+    { id: "all",        label: "All",        count: FEED_PEOPLE.length },
+    { id: "threats",    label: "Threats",    count: FEED_PEOPLE.filter(p => ["BLACKLIST","UNREGISTERED"].includes(p.status)).length },
+    { id: "unknowns",   label: "Unknowns",   count: FEED_PEOPLE.filter(p => ["UNKNOWN","UNREGISTERED"].includes(p.status)).length },
+    { id: "vip",        label: "VIP",        count: FEED_PEOPLE.filter(p => p.status === "VIP").length },
+    { id: "authorized", label: "Authorised", count: FEED_PEOPLE.filter(p => ["WHITELIST","AUTHORIZED"].includes(p.status)).length },
   ];
 
   return (
-    <div className="flex flex-col overflow-hidden rounded-[4px] border border-neutral-200 bg-white shadow-sm" style={{ minHeight: "75vh" }}>
-      <JourneyMapModal
-        open={journeyMapOpen}
-        onClose={() => setJourneyMapOpen(false)}
-        selectedCameraId={selectedItem?.cameraId ?? primaryEntity.cameraId}
-      />
-      <div className="shrink-0 flex flex-wrap items-center gap-1 border-b border-white/10 bg-[#021d18] px-3 py-2 text-xs">
-        <StatusPill count={2} label="Active Threats" colorClass="bg-red-900/50 text-red-300" pulse />
-        <span className="px-0.5 text-white/20">·</span>
-        <StatusPill count={5} label="Unknowns at Entry" colorClass="bg-amber-900/40 text-amber-300" />
-        <span className="px-0.5 text-white/20">·</span>
-        <StatusPill count={1} label="VIP on Site" colorClass="bg-yellow-900/40 text-yellow-300" />
-        <span className="px-0.5 text-white/20">·</span>
-        <StatusPill count="11/12" label="Cameras Online" colorClass="bg-emerald-900/40 text-emerald-300" />
-        <span className="ml-auto text-[10px] text-white/40">Last updated: 3s ago · Auto-refresh ON</span>
+    <div className="flex flex-col gap-3">
+
+      {/* Status Bar */}
+      <div className="flex flex-wrap items-center gap-1.5 px-3 py-2 rounded-[4px] bg-[#021d18] border border-white/5">
+        <StatusPill label="2 Active Threats"    colorClass="bg-red-900/50 text-red-300"    pulse />
+        <span className="text-white/20 mx-0.5">·</span>
+        <StatusPill label="4 Unknowns at Entry" colorClass="bg-amber-900/40 text-amber-300" />
+        <span className="text-white/20 mx-0.5">·</span>
+        <StatusPill label="1 VIP on Site"        colorClass="bg-yellow-900/40 text-yellow-300" />
+        <span className="text-white/20 mx-0.5">·</span>
+        <StatusPill label={`${status.cameras_online}/${status.cameras_total} Cameras`} colorClass="bg-emerald-900/40 text-emerald-300" />
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-[10px] text-white/40 font-mono">LIVE · 3s ago</span>
+        </div>
       </div>
 
-      <div className="flex flex-1 min-h-0 divide-x divide-neutral-200" style={{ minHeight: "calc(75vh - 40px)" }}>
-        <div className="flex w-[34%] min-h-0 flex-col bg-neutral-50/40">
-          <div className="shrink-0 overflow-x-auto border-b border-neutral-200 bg-white px-2 py-2">
-            <div className="flex items-center gap-0.5">
-              {FILTERS.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setFeedFilter(f.id)}
+      {/* Summary cards */}
+      <SummaryCards onFilter={setFeedFilter} />
+
+      {/* Two-column layout */}
+      <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 420px", alignItems: "start" }}>
+
+        {/* LEFT: Feed */}
+        <div className="bg-white rounded-[4px] border border-neutral-100 shadow-sm overflow-hidden">
+
+          {/* Feed header */}
+          <div className="flex items-center gap-2 px-4 py-2.5 border-b border-neutral-100 bg-neutral-50/50">
+            <Radio className="w-3.5 h-3.5 text-[#00775B]" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-500">Security Triage Feed</span>
+            <div className="flex items-center gap-1 ml-auto">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] text-emerald-600 font-bold">LIVE</span>
+            </div>
+          </div>
+
+          {/* Filter + sort */}
+          <div className="flex items-center gap-1 px-3 py-2 border-b border-neutral-100 flex-wrap">
+            {TABS.map(tab => (
+              <button key={tab.id} onClick={() => setFeedFilter(tab.id)}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-[4px] text-[10px] font-bold transition-colors whitespace-nowrap",
+                  feedFilter === tab.id ? "bg-[#021d18] text-white" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+                )}>
+                {tab.label}
+                <span className={cn("text-[9px] px-1 py-px rounded-[2px] min-w-[16px] text-center tabular-nums",
+                  feedFilter === tab.id ? "bg-white/20 text-white" : "bg-neutral-200 text-neutral-500")}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+            <div className="flex items-center gap-0 ml-auto border border-neutral-200 rounded-[4px] overflow-hidden">
+              {(["priority", "newest"] as SortMode[]).map(s => (
+                <button key={s} onClick={() => setSort(s)}
                   className={cn(
-                    "flex items-center gap-1 rounded-[4px] px-2 py-1 text-[10px] font-semibold whitespace-nowrap transition-colors",
-                    feedFilter === f.id ? "bg-[#021d18] text-white" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
-                  )}
-                >
-                  {f.label}
-                  <span className={cn("min-w-[16px] rounded-full px-1 py-0.5 text-[9px] text-center", feedFilter === f.id ? "bg-white/20 text-white" : "bg-neutral-200 text-neutral-500")}>
-                    {f.count}
-                  </span>
+                    "px-2 py-1 text-[9px] font-bold capitalize transition-colors",
+                    sort === s ? "bg-neutral-800 text-white" : "text-neutral-400 hover:text-neutral-700"
+                  )}>
+                  {s}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex-1 space-y-2 overflow-y-auto p-2">
-            {filteredSticky.length > 0 && (
-              <>
-                <div className="flex items-center gap-2 px-1">
-                  <div className="h-px flex-1 bg-red-200" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Active Threats</span>
-                  <div className="h-px flex-1 bg-red-200" />
-                </div>
-                {filteredSticky.map((item) => (
-                  <FeedCard key={item.id} item={item} selected={selectedId === item.id} onClick={() => setSelectedId(item.id === selectedId ? null : item.id)} />
-                ))}
-                <div className="flex items-center gap-2 px-1">
-                  <div className="h-px flex-1 bg-neutral-200" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Live Feed</span>
-                  <div className="h-px flex-1 bg-neutral-200" />
-                </div>
-              </>
-            )}
-
-            {filteredLive.map((item) => (
-              <FeedCard key={item.id} item={item} selected={selectedId === item.id} onClick={() => setSelectedId(item.id === selectedId ? null : item.id)} />
+          {/* Feed list */}
+          <div className="divide-y divide-neutral-100 overflow-y-auto" style={{ maxHeight: "calc(100vh - 360px)" }}>
+            {filteredFeed.length === 0 ? (
+              <p className="py-10 text-center text-xs text-neutral-400">No detections match this filter.</p>
+            ) : filteredFeed.map(person => (
+              <div key={person.id} className="p-2">
+                <FeedCard
+                  person={person}
+                  selected={selectedId === person.id}
+                  onClick={() => setSelectedId(p => p === person.id ? null : person.id)}
+                />
+              </div>
             ))}
-
-            {filteredSticky.length === 0 && filteredLive.length === 0 && <p className="py-10 text-center text-xs text-neutral-400">No detections match this filter.</p>}
           </div>
         </div>
 
-        <div className="flex w-[66%] min-h-0 flex-col bg-neutral-50/30">
-          <div className="shrink-0 border-b border-neutral-200 bg-white p-3">
-            <div className="grid gap-3 xl:grid-cols-2">
-              <DetailCard
-                title="Entity Detail"
-                item={primaryEntity}
-                accent="alert"
-                onOpen={() => onEntityClick?.(primaryEntity.status === "BLACKLIST" ? "blacklist" : "unknown")}
-              />
-              <DetailCard
-                title="Vehicle Detail"
-                item={primaryVehicle}
-                accent="watch"
-                onOpen={() => onEntityClick?.(primaryVehicle.status === "UNREGISTERED" ? "unknown" : "matched")}
-              />
-            </div>
-          </div>
-
-          <div className="shrink-0 border-b border-neutral-200 bg-neutral-50 p-3">
-            <TodaySummary />
-          </div>
-
-          <div className="grid min-h-0 flex-1 gap-3 p-3 xl:grid-cols-[1.1fr,0.9fr]">
-            <div className="flex min-h-0 flex-col gap-3">
-              <div className="rounded-[4px] border border-neutral-200 bg-white p-3 shadow-sm">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Camera className="h-4 w-4 text-[#00775B]" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Journey Map</span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setJourneyMapOpen(true);
-                      onJourneyClick?.();
-                    }}
-                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#00775B] hover:text-[#00956D]"
-                  >
-                    <Maximize2 className="h-3 w-3" />
-                    Open Popup
-                  </button>
-                </div>
-                <div className="rounded-[4px] border border-dashed border-neutral-200 bg-neutral-50 px-4 py-6 text-center">
-                  <p className="text-[11px] font-semibold text-neutral-700">Journey map moved to popup</p>
-                  <p className="mt-1 text-[10px] text-neutral-500">
-                    Open the map overlay to inspect route progression and zone highlights.
-                  </p>
-                </div>
-              </div>
-
-              <div className="min-h-0 overflow-hidden rounded-[4px] border border-neutral-200 bg-white shadow-sm">
-                <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-2.5">
-                  <span className="text-xs font-bold text-neutral-700">{selectedItem ? selectedItem.displayName : "Selected Detail"}</span>
-                  {selectedItem && (
-                    <div className="ml-auto flex items-center gap-2">
-                      <button onClick={() => onCameraClick?.(selectedItem.cameraId)} className="text-[10px] font-semibold text-[#00775B] hover:text-[#00956D]">
-                        Open Feed
-                      </button>
-                      <button onClick={() => setSelectedId(null)} className="flex items-center gap-1 text-[10px] text-neutral-400 transition-colors hover:text-neutral-600">
-                        <X className="h-3 w-3" /> Clear
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <div className="h-full overflow-y-auto">
-                  {selectedItem ? <PersonDetail item={selectedItem} onClose={() => setSelectedId(null)} /> : <PersonDetail item={primaryEntity} onClose={() => setSelectedId(null)} />}
-                </div>
-              </div>
-            </div>
-
-            <div className="min-h-0 overflow-y-auto">
-              <JourneyDefaultView onSelect={(id) => setSelectedId(id)} />
-            </div>
-          </div>
+        {/* RIGHT: Detail */}
+        <div className="flex flex-col gap-3">
+          {selectedPerson
+            ? <EntityDetailPanel person={selectedPerson} onClose={() => setSelectedId(null)} />
+            : <TodaySummary />
+          }
         </div>
       </div>
     </div>
