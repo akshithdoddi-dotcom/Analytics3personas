@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/app/lib/utils";
 import {
   AlertTriangle,
@@ -7,11 +7,13 @@ import {
   ChevronRight,
   Navigation,
   X,
+  Camera,
+  CarFront,
+  Waypoints,
+  Maximize2,
 } from "lucide-react";
 import type { IdentityTerminology } from "./data/types";
 import type { IdentityAppOption } from "../IdentityAnalytics";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 type MatchStatus =
   | "BLACKLIST"
@@ -38,6 +40,8 @@ interface FeedItem {
   recurringDays?: number;
   actions: string[];
   isSticky?: boolean;
+  imageSrc?: string;
+  plateText?: string;
 }
 
 interface JourneyStop {
@@ -48,7 +52,15 @@ interface JourneyStop {
   status?: string;
 }
 
-// ─── Mock feed data ───────────────────────────────────────────────────────────
+const REAL_FACE_IMAGES = [
+  "https://images.pexels.com/photos/14801453/pexels-photo-14801453.jpeg?cs=srgb&dl=pexels-kwizera-gadson-14801453.jpg&fm=jpg",
+  "https://images.pexels.com/photos/33738484/pexels-photo-33738484.jpeg?cs=srgb&dl=pexels-vika-glitter-392079-33738484.jpg&fm=jpg",
+];
+
+const REAL_LPR_IMAGES = [
+  "https://images.pexels.com/photos/9331863/pexels-photo-9331863.jpeg?cs=srgb&dl=pexels-hasan-albari-1229861-9331863.jpg&fm=jpg",
+  "https://images.pexels.com/photos/10182843/pexels-photo-10182843.jpeg?cs=srgb&dl=pexels-hson-10182843.jpg&fm=jpg",
+];
 
 const FEED_ITEMS: FeedItem[] = [
   {
@@ -62,6 +74,7 @@ const FEED_ITEMS: FeedItem[] = [
     confidence: 94.7,
     actions: ["Acknowledge", "Dispatch Guard", "Lock Entry"],
     isSticky: true,
+    imageSrc: REAL_FACE_IMAGES[0],
   },
   {
     id: "f2",
@@ -76,6 +89,7 @@ const FEED_ITEMS: FeedItem[] = [
     recurringDays: 4,
     actions: ["Enroll", "Escalate", "Track Journey"],
     isSticky: true,
+    imageSrc: REAL_FACE_IMAGES[1],
   },
   {
     id: "f3",
@@ -87,6 +101,7 @@ const FEED_ITEMS: FeedItem[] = [
     time: "09:12:45",
     confidence: 97.3,
     actions: ["Notify Host"],
+    imageSrc: REAL_FACE_IMAGES[0],
   },
   {
     id: "f4",
@@ -99,6 +114,7 @@ const FEED_ITEMS: FeedItem[] = [
     time: "09:12:45",
     confidence: 96.1,
     actions: [],
+    imageSrc: REAL_FACE_IMAGES[0],
   },
   {
     id: "f5",
@@ -111,6 +127,8 @@ const FEED_ITEMS: FeedItem[] = [
     time: "09:13:05",
     confidence: 98.2,
     actions: [],
+    imageSrc: REAL_LPR_IMAGES[0],
+    plateText: "KA05MJ4421",
   },
   {
     id: "f6",
@@ -121,10 +139,12 @@ const FEED_ITEMS: FeedItem[] = [
     camera: "Garage Entry A",
     cameraId: "cam_garage_entry_a",
     time: "09:14:06",
-    confidence: 91.0,
+    confidence: 91,
     recurring: true,
     recurringDays: 4,
     actions: ["Add to Authorized", "Escalate", "Notify Security"],
+    imageSrc: REAL_LPR_IMAGES[1],
+    plateText: "UP80MN1123",
   },
   {
     id: "f7",
@@ -138,6 +158,7 @@ const FEED_ITEMS: FeedItem[] = [
     recurring: true,
     recurringDays: 2,
     actions: ["Enroll", "Escalate"],
+    imageSrc: REAL_FACE_IMAGES[1],
   },
   {
     id: "f8",
@@ -149,6 +170,7 @@ const FEED_ITEMS: FeedItem[] = [
     time: "09:10:29",
     dwell: 12,
     actions: ["Enroll", "Mark as Visitor"],
+    imageSrc: REAL_FACE_IMAGES[1],
   },
   {
     id: "f9",
@@ -161,6 +183,7 @@ const FEED_ITEMS: FeedItem[] = [
     time: "09:09:14",
     confidence: 95.4,
     actions: [],
+    imageSrc: REAL_FACE_IMAGES[0],
   },
   {
     id: "f10",
@@ -173,35 +196,44 @@ const FEED_ITEMS: FeedItem[] = [
     time: "09:08:55",
     confidence: 97.8,
     actions: [],
+    imageSrc: REAL_FACE_IMAGES[0],
   },
 ];
 
 const JOURNEY_DATA: Record<string, JourneyStop[]> = {
   f1: [
-    { camera: "Parking Garage", time: "08:52", dwell: "4.2s", note: "🚗 KA05MJ4421 linked" },
-    { camera: "South Entrance", time: "08:58", dwell: "42s", note: "⚠ Unknown alert (resolved)" },
+    { camera: "Parking Garage", time: "08:52", dwell: "4.2s", note: "KA05MJ4421 linked" },
+    { camera: "South Entrance", time: "08:58", dwell: "42s", note: "Unknown alert resolved" },
     { camera: "North Entrance", time: "09:11", dwell: "2.1s" },
-    { camera: "Main Lobby", time: "09:13", dwell: "8.3s", status: "ACTIVE", note: "⛔ Blacklist alert ACTIVE" },
+    { camera: "Main Lobby", time: "09:13", dwell: "8.3s", status: "ACTIVE", note: "Blacklist alert ACTIVE" },
   ],
   f2: [
     { camera: "South Entrance", time: "08:41", dwell: "31s" },
-    { camera: "South Entrance", time: "09:13", dwell: "4m 12s", status: "ACTIVE", note: "Currently present — dwell growing" },
+    { camera: "South Entrance", time: "09:13", dwell: "4m 12s", status: "ACTIVE", note: "Currently present, dwell growing" },
+  ],
+  f5: [
+    { camera: "Garage Entry A", time: "09:05", dwell: "3.2s" },
+    { camera: "Loading Bay", time: "09:09", dwell: "4.8s" },
+    { camera: "Service Ramp", time: "09:13", dwell: "2.1s", status: "ACTIVE", note: "Authorized access confirmed" },
+  ],
+  f6: [
+    { camera: "Basement Store", time: "08:57", dwell: "6.1s" },
+    { camera: "Service Ramp", time: "09:05", dwell: "4.7s" },
+    { camera: "Garage Entry A", time: "09:14", dwell: "3.0s", status: "ACTIVE", note: "Blocked at gate" },
   ],
 };
 
-// ─── Zone map nodes ───────────────────────────────────────────────────────────
-
 const ZONE_NODES = [
-  { id: "cam_parking_garage",  label: "Parking",       x: 15, y: 78, level: "normal" },
-  { id: "cam_south_entrance",  label: "South Ent.",    x: 28, y: 58, level: "unknown" },
-  { id: "cam_north_entrance",  label: "North Ent.",    x: 62, y: 28, level: "normal" },
-  { id: "cam_main_lobby",      label: "Main Lobby",    x: 78, y: 52, level: "critical" },
-  { id: "cam_garage_entry_a",  label: "Garage A",      x: 18, y: 38, level: "unknown" },
-  { id: "cam_garage_entry_b",  label: "Garage B",      x: 34, y: 20, level: "normal" },
-  { id: "cam_reception",       label: "Reception",     x: 60, y: 70, level: "normal" },
-  { id: "cam_west_corridor",   label: "West Corr.",    x: 48, y: 50, level: "normal" },
-  { id: "cam_executive_floor", label: "Executive",     x: 88, y: 22, level: "normal" },
-  { id: "cam_server_room",     label: "Server Room",   x: 84, y: 82, level: "offline" },
+  { id: "cam_parking_garage", label: "Parking", x: 15, y: 78, level: "normal" },
+  { id: "cam_south_entrance", label: "South Ent.", x: 28, y: 58, level: "unknown" },
+  { id: "cam_north_entrance", label: "North Ent.", x: 62, y: 28, level: "normal" },
+  { id: "cam_main_lobby", label: "Main Lobby", x: 78, y: 52, level: "critical" },
+  { id: "cam_garage_entry_a", label: "Garage A", x: 18, y: 38, level: "unknown" },
+  { id: "cam_garage_entry_b", label: "Garage B", x: 34, y: 20, level: "normal" },
+  { id: "cam_reception", label: "Reception", x: 60, y: 70, level: "normal" },
+  { id: "cam_west_corridor", label: "West Corr.", x: 48, y: 50, level: "normal" },
+  { id: "cam_executive_floor", label: "Executive", x: 88, y: 22, level: "normal" },
+  { id: "cam_server_room", label: "Server Room", x: 84, y: 82, level: "offline" },
 ];
 
 const LEVEL_COLOR: Record<string, string> = {
@@ -212,21 +244,23 @@ const LEVEL_COLOR: Record<string, string> = {
   offline: "#9CA3AF",
 };
 
-// Selected person's path order (for BL-003 example)
-const BL_PATH = ["cam_parking_garage", "cam_south_entrance", "cam_north_entrance", "cam_main_lobby"];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const PATHS: Record<string, string[]> = {
+  cam_main_lobby: ["cam_parking_garage", "cam_south_entrance", "cam_north_entrance", "cam_main_lobby"],
+  cam_south_entrance: ["cam_south_entrance"],
+  cam_garage_entry_a: ["cam_garage_entry_a", "cam_west_corridor", "cam_main_lobby"],
+  cam_garage_entry_b: ["cam_garage_entry_b", "cam_garage_entry_a"],
+};
 
 const STATUS_META: Record<
   MatchStatus,
   { label: string; textColor: string; border: string; bg: string; badgeBg: string; badgeText: string }
 > = {
-  BLACKLIST:    { label: "Blacklist",    textColor: "text-red-600",    border: "border-l-red-500",    bg: "bg-red-50/60",    badgeBg: "bg-red-100",    badgeText: "text-red-700" },
-  UNKNOWN:      { label: "Unknown",     textColor: "text-amber-600",  border: "border-l-amber-400",  bg: "bg-amber-50/40",  badgeBg: "bg-amber-100",  badgeText: "text-amber-700" },
-  WHITELIST:    { label: "Whitelist",   textColor: "text-emerald-700",border: "border-l-transparent",bg: "",                badgeBg: "bg-emerald-100",badgeText: "text-emerald-700" },
-  AUTHORIZED:   { label: "Authorized",  textColor: "text-emerald-700",border: "border-l-transparent",bg: "",                badgeBg: "bg-emerald-100",badgeText: "text-emerald-700" },
-  VIP:          { label: "VIP",         textColor: "text-yellow-700", border: "border-l-yellow-400", bg: "bg-yellow-50/40", badgeBg: "bg-yellow-100", badgeText: "text-yellow-700" },
-  UNREGISTERED: { label: "Unregistered",textColor: "text-amber-600",  border: "border-l-amber-400",  bg: "bg-amber-50/40",  badgeBg: "bg-amber-100",  badgeText: "text-amber-700" },
+  BLACKLIST: { label: "Blacklist", textColor: "text-red-600", border: "border-l-red-500", bg: "bg-red-50/60", badgeBg: "bg-red-100", badgeText: "text-red-700" },
+  UNKNOWN: { label: "Unknown", textColor: "text-amber-600", border: "border-l-amber-400", bg: "bg-amber-50/40", badgeBg: "bg-amber-100", badgeText: "text-amber-700" },
+  WHITELIST: { label: "Whitelist", textColor: "text-emerald-700", border: "border-l-transparent", bg: "", badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
+  AUTHORIZED: { label: "Authorized", textColor: "text-emerald-700", border: "border-l-transparent", bg: "", badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
+  VIP: { label: "VIP", textColor: "text-yellow-700", border: "border-l-yellow-400", bg: "bg-yellow-50/40", badgeBg: "bg-yellow-100", badgeText: "text-yellow-700" },
+  UNREGISTERED: { label: "Unregistered", textColor: "text-amber-600", border: "border-l-amber-400", bg: "bg-amber-50/40", badgeBg: "bg-amber-100", badgeText: "text-amber-700" },
 };
 
 function formatDwell(sec: number) {
@@ -235,8 +269,6 @@ function formatDwell(sec: number) {
   const s = sec % 60;
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
-
-// ─── Status bar pill ──────────────────────────────────────────────────────────
 
 function StatusPill({
   count,
@@ -250,51 +282,51 @@ function StatusPill({
   pulse?: boolean;
 }) {
   return (
-    <div className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold", colorClass)}>
-      {pulse && (
-        <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse shrink-0" />
-      )}
+    <div className={cn("flex items-center gap-1.5 rounded-[4px] px-2.5 py-1 text-xs font-semibold", colorClass)}>
+      {pulse && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current animate-pulse" />}
       <span>{count}</span>
       <span className="font-normal opacity-75">{label}</span>
     </div>
   );
 }
 
-// ─── Avatar placeholder ───────────────────────────────────────────────────────
-
-function AvatarBox({ type, status }: { type: "FACE" | "PLATE"; status: MatchStatus }) {
+function AvatarBox({ item, className }: { item: FeedItem; className?: string }) {
   const bg =
-    status === "BLACKLIST"
+    item.status === "BLACKLIST"
       ? "bg-red-100"
-      : status === "VIP"
+      : item.status === "VIP"
       ? "bg-yellow-100"
-      : status === "UNKNOWN" || status === "UNREGISTERED"
+      : item.status === "UNKNOWN" || item.status === "UNREGISTERED"
       ? "bg-amber-100"
       : "bg-emerald-50";
+
   return (
-    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-black/5", bg)}>
-      {type === "PLATE" ? (
-        <span className="text-[8px] font-bold text-neutral-500 text-center leading-tight tracking-tight">
-          PLATE
-        </span>
+    <div className={cn("relative overflow-hidden rounded-[4px] border border-black/5", bg, className ?? "h-10 w-10")}>
+      {item.imageSrc ? (
+        <img src={item.imageSrc} alt={item.displayName} className="h-full w-full object-cover" />
       ) : (
-        <User className="w-5 h-5 text-neutral-400" />
+        <div className="flex h-full w-full items-center justify-center">
+          {item.type === "PLATE" ? <CarFront className="h-5 w-5 text-neutral-400" /> : <User className="h-5 w-5 text-neutral-400" />}
+        </div>
+      )}
+
+      {item.type === "PLATE" && item.plateText && (
+        <div className="absolute bottom-1 left-1 right-1 rounded-[2px] bg-black/70 px-1 py-0.5 text-center text-[7px] font-bold tracking-[0.12em] text-white">
+          {item.plateText}
+        </div>
       )}
     </div>
   );
 }
 
-// ─── Inline action button ─────────────────────────────────────────────────────
-
 function ActionBtn({ label }: { label: string }) {
-  const isDestructive =
-    label === "Acknowledge" || label === "Dispatch Guard" || label === "Lock Entry";
+  const isDestructive = label === "Acknowledge" || label === "Dispatch Guard" || label === "Lock Entry";
   const isPrimary = label === "Enroll" || label === "Add to Authorized";
   return (
     <button
       onClick={(e) => e.stopPropagation()}
       className={cn(
-        "px-2 py-0.5 rounded text-[10px] font-semibold border transition-colors whitespace-nowrap",
+        "whitespace-nowrap rounded px-2 py-0.5 text-[10px] font-semibold border transition-colors",
         isDestructive && "border-red-300 text-red-600 hover:bg-red-50",
         isPrimary && "border-[#00775B] text-[#00775B] hover:bg-emerald-50",
         !isDestructive && !isPrimary && "border-neutral-300 text-neutral-600 hover:bg-neutral-100"
@@ -304,8 +336,6 @@ function ActionBtn({ label }: { label: string }) {
     </button>
   );
 }
-
-// ─── Feed card ────────────────────────────────────────────────────────────────
 
 function FeedCard({
   item,
@@ -321,125 +351,152 @@ function FeedCard({
     <div
       onClick={onClick}
       className={cn(
-        "border-l-4 rounded-r-lg px-3 py-2.5 cursor-pointer transition-all border border-l-0 select-none",
+        "border-l-4 rounded-r-lg border border-l-0 px-3 py-2.5 cursor-pointer transition-all select-none",
         meta.border,
         meta.bg,
-        selected
-          ? "border-neutral-300 bg-white shadow-md ring-1 ring-[#00775B]/30"
-          : "border-neutral-200 hover:bg-white hover:shadow-sm"
+        selected ? "border-neutral-300 bg-white shadow-md ring-1 ring-[#00775B]/30" : "border-neutral-200 hover:bg-white hover:shadow-sm"
       )}
     >
       <div className="flex items-start gap-2.5">
-        <AvatarBox type={item.type} status={item.status} />
-        <div className="flex-1 min-w-0">
+        <AvatarBox item={item} />
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-bold text-neutral-900 truncate">{item.displayName}</span>
-            <span
-              className={cn(
-                "text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded",
-                meta.badgeBg,
-                meta.badgeText
-              )}
-            >
+            <span className="truncate text-xs font-bold text-neutral-900">{item.displayName}</span>
+            <span className={cn("rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider", meta.badgeBg, meta.badgeText)}>
               {meta.label}
             </span>
             {item.recurring && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
-                ▲ Recurring {item.recurringDays}d
+              <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[9px] font-bold text-orange-700">
+                Recurring {item.recurringDays}d
               </span>
             )}
           </div>
-          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-            <MapPin className="w-2.5 h-2.5 text-neutral-400 shrink-0" />
-            <span className="text-[10px] text-neutral-500 truncate">{item.camera}</span>
-            {item.confidence !== undefined && (
-              <span className="text-[10px] text-neutral-400 shrink-0">· {item.confidence}%</span>
-            )}
-            {item.dwell !== undefined && (
-              <span className="text-[10px] text-amber-600 font-semibold shrink-0">
-                · dwell {formatDwell(item.dwell)}
-              </span>
-            )}
+          <div className="mt-0.5 flex items-center gap-1 flex-wrap">
+            <MapPin className="h-2.5 w-2.5 shrink-0 text-neutral-400" />
+            <span className="truncate text-[10px] text-neutral-500">{item.camera}</span>
+            {item.confidence !== undefined && <span className="shrink-0 text-[10px] text-neutral-400">· {item.confidence}%</span>}
+            {item.dwell !== undefined && <span className="shrink-0 text-[10px] font-semibold text-amber-600">· dwell {formatDwell(item.dwell)}</span>}
           </div>
           {item.actions.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1.5">
+            <div className="mt-1.5 flex flex-wrap gap-1">
               {item.actions.slice(0, 3).map((a) => (
                 <ActionBtn key={a} label={a} />
               ))}
             </div>
           )}
         </div>
-        <span className="text-[10px] text-neutral-400 shrink-0 mt-0.5">{item.time}</span>
+        <span className="mt-0.5 shrink-0 text-[10px] text-neutral-400">{item.time}</span>
       </div>
     </div>
   );
 }
 
-// ─── Center: Today's Summary ──────────────────────────────────────────────────
+function DetailCard({
+  title,
+  item,
+  accent = "neutral",
+  onOpen,
+}: {
+  title: string;
+  item: FeedItem;
+  accent?: "neutral" | "alert" | "watch";
+  onOpen?: () => void;
+}) {
+  const tone =
+    accent === "alert"
+      ? "border-red-200 bg-red-50/60"
+      : accent === "watch"
+      ? "border-amber-200 bg-amber-50/50"
+      : "border-neutral-200 bg-white";
+
+  return (
+    <div className={cn("rounded-[4px] border p-4 shadow-sm", tone)}>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">{title}</p>
+        <button onClick={onOpen} className="text-[10px] font-semibold text-[#00775B] hover:text-[#00956D]">
+          Open Detail
+        </button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-[120px,1fr]">
+        <AvatarBox item={item} className="h-[108px] w-full rounded-[4px]" />
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className="text-sm font-bold text-neutral-900">{item.displayName}</h3>
+            <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase", STATUS_META[item.status].badgeBg, STATUS_META[item.status].badgeText)}>
+              {STATUS_META[item.status].label}
+            </span>
+          </div>
+          {item.subLabel && <p className="mt-1 text-[11px] text-neutral-500">{item.subLabel}</p>}
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Camera</p>
+              <p className="mt-1 truncate text-[11px] font-semibold text-neutral-800">{item.camera}</p>
+            </div>
+            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Confidence</p>
+              <p className="mt-1 text-[11px] font-semibold text-neutral-800">{item.confidence ?? "--"}%</p>
+            </div>
+            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Last Seen</p>
+              <p className="mt-1 text-[11px] font-semibold text-neutral-800">{item.time}</p>
+            </div>
+            <div className="rounded-[4px] border border-black/5 bg-white/80 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Journey</p>
+              <p className="mt-1 text-[11px] font-semibold text-neutral-800">{JOURNEY_DATA[item.id]?.length ?? 1} stops</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TodaySummary() {
   const rows = [
-    { label: "Blacklist Matches",     value: 1,    note: "1 unacknowledged", dot: "bg-red-500",    valueColor: "text-red-600" },
-    { label: "Unknowns at Entry",     value: 11,   note: "3 recurring",      dot: "bg-amber-400",  valueColor: "text-amber-600" },
-    { label: "Access Denials",        value: 4,    note: "",                 dot: "bg-orange-400", valueColor: "text-orange-600" },
-    { label: "VIP Detections",        value: 2,    note: "1 on site now",    dot: "bg-yellow-400", valueColor: "text-yellow-600" },
-    { label: "Total Identifications", value: 2840, note: "97.2% accuracy",   dot: "bg-emerald-500",valueColor: "text-emerald-700" },
+    { label: "Blacklist Matches", value: 1, note: "1 unacknowledged", dot: "bg-red-500", valueColor: "text-red-600" },
+    { label: "Unknowns at Entry", value: 11, note: "3 recurring", dot: "bg-amber-400", valueColor: "text-amber-600" },
+    { label: "Access Denials", value: 4, note: "", dot: "bg-orange-400", valueColor: "text-orange-600" },
+    { label: "VIP Detections", value: 2, note: "1 on site now", dot: "bg-yellow-400", valueColor: "text-yellow-600" },
+    { label: "Total Identifications", value: 2840, note: "97.2% accuracy", dot: "bg-emerald-500", valueColor: "text-emerald-700" },
   ];
 
   return (
-    <div className="p-4 space-y-4">
-      <div>
-        <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-3">
-          Today's Threat Summary
-        </p>
-        <div className="divide-y divide-neutral-100">
+    <div className="rounded-[4px] border border-neutral-200 bg-white p-4 shadow-sm">
+      <div className="mb-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Operational Summary</p>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-[1.2fr,0.8fr,0.8fr]">
+        <div className="divide-y divide-neutral-100 rounded-[4px] border border-neutral-100 bg-neutral-50/40 px-3">
           {rows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between py-2">
+            <div key={row.label} className="flex items-center justify-between py-2.5">
               <div className="flex items-center gap-2">
-                <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", row.dot)} />
+                <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", row.dot)} />
                 <span className="text-xs text-neutral-700">{row.label}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className={cn("text-sm font-bold tabular-nums", row.valueColor)}>
-                  {row.value.toLocaleString()}
-                </span>
-                {row.note && (
-                  <span className="text-[10px] text-neutral-400">{row.note}</span>
-                )}
+                <span className={cn("text-sm font-bold tabular-nums", row.valueColor)}>{row.value.toLocaleString()}</span>
+                {row.note && <span className="text-[10px] text-neutral-400">{row.note}</span>}
               </div>
             </div>
           ))}
         </div>
-      </div>
 
-      <div className="bg-red-50 rounded-xl p-3 border border-red-200">
-        <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wider mb-0.5">
-          Most Active Threat Zone
-        </p>
-        <p className="text-sm font-bold text-red-700">Main Lobby</p>
-        <p className="text-[11px] text-red-500 mt-0.5">
-          1 blacklist hit · 12 access denials today
-        </p>
-      </div>
+        <div className="rounded-[4px] border border-red-200 bg-red-50 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-red-500">Most Active Threat Zone</p>
+          <p className="mt-1 text-sm font-bold text-red-700">Main Lobby</p>
+          <p className="mt-1 text-[11px] text-red-500">1 blacklist hit · 12 access denials today</p>
+        </div>
 
-      <div className="bg-amber-50 rounded-xl p-3 border border-amber-200">
-        <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-0.5">
-          Longest Unknown Dwell
-        </p>
-        <p className="text-sm font-bold text-amber-800">Unknown #88 · South Entrance</p>
-        <p className="text-[11px] text-amber-600 mt-0.5">
-          4m 12s at entry point — recurring over 4 days
-        </p>
+        <div className="rounded-[4px] border border-amber-200 bg-amber-50 p-3">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Longest Unknown Dwell</p>
+          <p className="mt-1 text-sm font-bold text-amber-800">Unknown #88 · South Entrance</p>
+          <p className="mt-1 text-[11px] text-amber-600">4m 12s at entry point · recurring over 4 days</p>
+        </div>
       </div>
-
-      <p className="text-[10px] text-neutral-400 text-center pt-2">
-        Select a detection from the feed to view full details
-      </p>
     </div>
   );
 }
-
-// ─── Center: Person / Vehicle detail ─────────────────────────────────────────
 
 function PersonDetail({
   item,
@@ -452,44 +509,18 @@ function PersonDetail({
   const journey = JOURNEY_DATA[item.id];
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className={cn("flex items-start gap-3 p-4 border-b border-neutral-200", meta.bg)}>
-        <div
-          className={cn(
-            "w-16 h-16 rounded-xl flex items-center justify-center shrink-0 border border-black/5",
-            item.status === "BLACKLIST"
-              ? "bg-red-100"
-              : item.status === "VIP"
-              ? "bg-yellow-100"
-              : item.status === "UNKNOWN" || item.status === "UNREGISTERED"
-              ? "bg-amber-100"
-              : "bg-emerald-50"
-          )}
-        >
-          {item.type === "PLATE" ? (
-            <span className="text-[10px] font-bold text-neutral-500">PLATE</span>
-          ) : (
-            <User className="w-8 h-8 text-neutral-400" />
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
+    <div className="flex h-full flex-col">
+      <div className={cn("flex items-start gap-3 border-b border-neutral-200 p-4", meta.bg)}>
+        <AvatarBox item={item} className="h-20 w-20 rounded-[4px]" />
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-bold text-neutral-900">{item.displayName}</span>
-            <span
-              className={cn(
-                "text-[9px] font-bold uppercase px-2 py-0.5 rounded-full",
-                meta.badgeBg,
-                meta.badgeText
-              )}
-            >
+            <span className={cn("rounded-full px-2 py-0.5 text-[9px] font-bold uppercase", meta.badgeBg, meta.badgeText)}>
               {meta.label}
             </span>
           </div>
-          {item.subLabel && (
-            <p className="text-[11px] text-neutral-500 mt-0.5">{item.subLabel}</p>
-          )}
-          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          {item.subLabel && <p className="mt-0.5 text-[11px] text-neutral-500">{item.subLabel}</p>}
+          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
             {item.confidence !== undefined && (
               <span className="text-[10px] text-neutral-500">
                 Match: <strong>{item.confidence}%</strong>
@@ -500,38 +531,23 @@ function PersonDetail({
               {item.camera} · {item.time}
             </span>
           </div>
-          {item.recurring && (
-            <p className="text-[10px] text-orange-600 font-semibold mt-1">
-              ▲ Recurring — Seen on {item.recurringDays} of last 5 days
-            </p>
-          )}
+          {item.recurring && <p className="mt-1 text-[10px] font-semibold text-orange-600">Recurring over {item.recurringDays} of last 5 days</p>}
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 rounded-md hover:bg-black/5 text-neutral-400 hover:text-neutral-600 transition-colors shrink-0"
-        >
-          <X className="w-4 h-4" />
+        <button onClick={onClose} className="shrink-0 rounded-md p-1 text-neutral-400 transition-colors hover:bg-black/5 hover:text-neutral-600">
+          <X className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Alert / action block */}
       {(item.status === "BLACKLIST" || item.status === "UNREGISTERED") && item.actions.length > 0 && (
-        <div className="mx-4 mt-3 p-3 bg-red-50 border border-red-200 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
-            <span className="text-[10px] font-bold text-red-700 uppercase tracking-wider">
-              Active Alert
-            </span>
-            <span className="ml-auto text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">
-              CRITICAL
-            </span>
+        <div className="mx-4 mt-3 rounded-[4px] border border-red-200 bg-red-50 p-3">
+          <div className="mb-2 flex items-center gap-2">
+            <AlertTriangle className="h-3.5 w-3.5 text-red-600" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-red-700">Active Alert</span>
+            <span className="ml-auto rounded-full bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">CRITICAL</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {item.actions.map((a) => (
-              <button
-                key={a}
-                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-red-300 text-red-700 hover:bg-red-100 transition-colors"
-              >
+              <button key={a} className="rounded-[4px] border border-red-300 px-2.5 py-1 text-[11px] font-semibold text-red-700 transition-colors hover:bg-red-100">
                 {a}
               </button>
             ))}
@@ -540,22 +556,18 @@ function PersonDetail({
       )}
 
       {item.status === "UNKNOWN" && item.actions.length > 0 && (
-        <div className="mx-4 mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
-          <div className="flex items-center gap-2 mb-2">
-            <User className="w-3.5 h-3.5 text-amber-600" />
-            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">
-              Actions
-            </span>
+        <div className="mx-4 mt-3 rounded-[4px] border border-amber-200 bg-amber-50 p-3">
+          <div className="mb-2 flex items-center gap-2">
+            <User className="h-3.5 w-3.5 text-amber-600" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Actions</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {item.actions.map((a) => (
               <button
                 key={a}
                 className={cn(
-                  "px-2.5 py-1 text-[11px] font-semibold rounded-lg border transition-colors",
-                  a === "Enroll"
-                    ? "border-[#00775B] text-[#00775B] hover:bg-emerald-50"
-                    : "border-amber-300 text-amber-700 hover:bg-amber-100"
+                  "rounded-[4px] border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+                  a === "Enroll" ? "border-[#00775B] text-[#00775B] hover:bg-emerald-50" : "border-amber-300 text-amber-700 hover:bg-amber-100"
                 )}
               >
                 {a}
@@ -565,57 +577,24 @@ function PersonDetail({
         </div>
       )}
 
-      {item.status === "VIP" && item.actions.length > 0 && (
-        <div className="mx-4 mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-xl">
-          <div className="flex flex-wrap gap-1.5">
-            {item.actions.map((a) => (
-              <button
-                key={a}
-                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-yellow-300 text-yellow-700 hover:bg-yellow-100 transition-colors"
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Journey history */}
       {journey && (
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-3">
-            Journey — Today
-          </p>
+        <div className="px-4 pb-2 pt-4">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Journey Timeline</p>
           <div>
             {journey.map((stop, i) => (
               <div key={i} className="flex gap-3">
                 <div className="flex flex-col items-center">
-                  <div
-                    className={cn(
-                      "w-2 h-2 rounded-full mt-1 shrink-0",
-                      stop.status === "ACTIVE"
-                        ? "bg-red-500 ring-2 ring-red-200"
-                        : "bg-neutral-300"
-                    )}
-                  />
-                  {i < journey.length - 1 && (
-                    <div className="w-px flex-1 bg-neutral-200 my-1" style={{ minHeight: 20 }} />
-                  )}
+                  <div className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", stop.status === "ACTIVE" ? "bg-red-500 ring-2 ring-red-200" : "bg-neutral-300")} />
+                  {i < journey.length - 1 && <div className="my-1 w-px flex-1 bg-neutral-200" style={{ minHeight: 20 }} />}
                 </div>
-                <div className="pb-3 min-w-0">
+                <div className="min-w-0 pb-3">
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-xs font-semibold text-neutral-800">{stop.time}</span>
                     <span className="text-xs text-neutral-600">{stop.camera}</span>
                     <span className="text-[10px] text-neutral-400">{stop.dwell}</span>
-                    {stop.status === "ACTIVE" && (
-                      <span className="text-[9px] font-bold text-red-600 uppercase">
-                        ← here now
-                      </span>
-                    )}
+                    {stop.status === "ACTIVE" && <span className="text-[9px] font-bold uppercase text-red-600">here now</span>}
                   </div>
-                  {stop.note && (
-                    <p className="text-[10px] text-neutral-500 mt-0.5">{stop.note}</p>
-                  )}
+                  {stop.note && <p className="mt-0.5 text-[10px] text-neutral-500">{stop.note}</p>}
                 </div>
               </div>
             ))}
@@ -624,55 +603,39 @@ function PersonDetail({
       )}
 
       {!journey && (
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">
-            Last Sighting
-          </p>
+        <div className="px-4 pb-2 pt-4">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-neutral-400">Last Sighting</p>
           <div className="flex items-center gap-2 text-xs text-neutral-600">
-            <MapPin className="w-3.5 h-3.5 text-neutral-400" />
+            <MapPin className="h-3.5 w-3.5 text-neutral-400" />
             {item.camera} · {item.time}
           </div>
         </div>
       )}
 
-      {/* Track Journey button */}
-      <div className="px-4 pb-4 mt-auto pt-3 border-t border-neutral-100">
-        <button className="w-full flex items-center justify-center gap-2 h-8 rounded-xl border border-neutral-200 text-xs font-semibold text-neutral-600 hover:bg-neutral-50 hover:border-[#00775B]/30 transition-all">
-          <Navigation className="w-3.5 h-3.5 text-neutral-400" />
+      <div className="mt-auto border-t border-neutral-100 px-4 pb-4 pt-3">
+        <button className="flex h-8 w-full items-center justify-center gap-2 rounded-[4px] border border-neutral-200 text-xs font-semibold text-neutral-600 transition-all hover:border-[#00775B]/30 hover:bg-neutral-50">
+          <Navigation className="h-3.5 w-3.5 text-neutral-400" />
           Track Journey
-          <ChevronRight className="w-3.5 h-3.5 ml-auto text-neutral-400" />
+          <ChevronRight className="ml-auto h-3.5 w-3.5 text-neutral-400" />
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Zone map (SVG schematic) ─────────────────────────────────────────────────
-
 function ZoneMap({ selectedCameraId }: { selectedCameraId?: string }) {
-  const pathIds =
-    selectedCameraId && BL_PATH.includes(selectedCameraId)
-      ? BL_PATH.slice(0, BL_PATH.indexOf(selectedCameraId) + 1)
-      : [];
+  const pathIds = selectedCameraId ? PATHS[selectedCameraId] ?? [selectedCameraId] : [];
 
   return (
-    <div className="relative w-full" style={{ paddingBottom: "72%" }}>
-      <svg
-        className="absolute inset-0 w-full h-full"
-        viewBox="0 0 100 100"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        {/* Floor plan outline */}
+    <div className="relative w-full" style={{ paddingBottom: "66%" }}>
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet">
         <rect x="5" y="5" width="90" height="90" rx="2" fill="#F9FAFB" stroke="#E5E7EB" strokeWidth="0.6" />
-        {/* Interior walls */}
         <line x1="5" y1="47" x2="95" y2="47" stroke="#E5E7EB" strokeWidth="0.4" strokeDasharray="3,2" />
         <line x1="50" y1="5" x2="50" y2="47" stroke="#E5E7EB" strokeWidth="0.4" strokeDasharray="3,2" />
-        {/* Zone labels */}
         <text x="27" y="70" fontSize="3" fill="#D1D5DB" textAnchor="middle" fontFamily="sans-serif">WEST</text>
         <text x="72" y="70" fontSize="3" fill="#D1D5DB" textAnchor="middle" fontFamily="sans-serif">EAST</text>
         <text x="27" y="28" fontSize="3" fill="#D1D5DB" textAnchor="middle" fontFamily="sans-serif">GARAGE</text>
 
-        {/* Path lines */}
         {pathIds.map((id, i) => {
           if (i === 0) return null;
           const from = ZONE_NODES.find((n) => n.id === pathIds[i - 1]);
@@ -681,8 +644,10 @@ function ZoneMap({ selectedCameraId }: { selectedCameraId?: string }) {
           return (
             <line
               key={id}
-              x1={from.x} y1={from.y}
-              x2={to.x} y2={to.y}
+              x1={from.x}
+              y1={from.y}
+              x2={to.x}
+              y2={to.y}
               stroke="#00775B"
               strokeWidth="0.8"
               strokeDasharray="3,1.5"
@@ -691,7 +656,6 @@ function ZoneMap({ selectedCameraId }: { selectedCameraId?: string }) {
           );
         })}
 
-        {/* Camera nodes */}
         {ZONE_NODES.map((node) => {
           const color = LEVEL_COLOR[node.level] ?? "#9CA3AF";
           const isSelected = node.id === selectedCameraId;
@@ -707,13 +671,7 @@ function ZoneMap({ selectedCameraId }: { selectedCameraId?: string }) {
                 </circle>
               )}
               <circle r={isSelected ? 3 : 2.2} fill={color} />
-              <text
-                y="6"
-                fontSize="2.2"
-                fill="#6B7280"
-                textAnchor="middle"
-                fontFamily="sans-serif"
-              >
+              <text y="6" fontSize="2.2" fill="#6B7280" textAnchor="middle" fontFamily="sans-serif">
                 {node.label}
               </text>
             </g>
@@ -724,22 +682,20 @@ function ZoneMap({ selectedCameraId }: { selectedCameraId?: string }) {
   );
 }
 
-// ─── Journey default view ─────────────────────────────────────────────────────
-
 const TOP_JOURNEYS = [
-  { id: "f1", name: "BL-003",        cameras: 4, duration: "21m", status: "BLACKLIST"    as MatchStatus, note: "⛔ active alert" },
-  { id: "f2", name: "Unknown #88",   cameras: 2, duration: "32m", status: "UNKNOWN"      as MatchStatus, note: "▲ recurring" },
-  { id: "f6", name: "UP80MN1123",    cameras: 1, duration: "2m",  status: "UNREGISTERED" as MatchStatus, note: "▲ recurring" },
-  { id: "f4", name: "John Smith",    cameras: 3, duration: "14m", status: "WHITELIST"    as MatchStatus, note: "" },
-  { id: "f9", name: "Sarah Johnson", cameras: 2, duration: "8m",  status: "WHITELIST"    as MatchStatus, note: "" },
+  { id: "f1", name: "BL-003", cameras: 4, duration: "21m", status: "BLACKLIST" as MatchStatus, note: "active alert" },
+  { id: "f2", name: "Unknown #88", cameras: 2, duration: "32m", status: "UNKNOWN" as MatchStatus, note: "recurring" },
+  { id: "f6", name: "UP80MN1123", cameras: 3, duration: "18m", status: "UNREGISTERED" as MatchStatus, note: "blocked" },
+  { id: "f5", name: "KA05MJ4421", cameras: 3, duration: "14m", status: "AUTHORIZED" as MatchStatus, note: "authorized" },
 ];
 
 function JourneyDefaultView({ onSelect }: { onSelect: (id: string) => void }) {
   return (
-    <div>
-      <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2.5">
-        Today's Notable Journeys
-      </p>
+    <div className="rounded-[4px] border border-neutral-200 bg-white p-3 shadow-sm">
+      <div className="mb-2 flex items-center gap-2">
+        <Waypoints className="h-4 w-4 text-[#00775B]" />
+        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Journey Map</p>
+      </div>
       <div className="space-y-1.5">
         {TOP_JOURNEYS.map((j) => {
           const meta = STATUS_META[j.status];
@@ -747,18 +703,14 @@ function JourneyDefaultView({ onSelect }: { onSelect: (id: string) => void }) {
             <div
               key={j.id}
               onClick={() => onSelect(j.id)}
-              className="flex items-center gap-2 px-2.5 py-2 rounded-xl border border-neutral-200 hover:border-[#00775B]/30 hover:bg-emerald-50/30 cursor-pointer transition-all group"
+              className="group flex cursor-pointer items-center gap-2 rounded-[4px] border border-neutral-200 px-2.5 py-2 transition-all hover:border-[#00775B]/30 hover:bg-emerald-50/30"
             >
-              <span className={cn("text-xs font-semibold flex-1 truncate", meta.textColor)}>
-                {j.name}
-              </span>
-              <span className="text-[10px] text-neutral-400 shrink-0">
+              <span className={cn("flex-1 truncate text-xs font-semibold", meta.textColor)}>{j.name}</span>
+              <span className="shrink-0 text-[10px] text-neutral-400">
                 {j.cameras} cams · {j.duration}
               </span>
-              {j.note && (
-                <span className="text-[9px] text-neutral-500 shrink-0">{j.note}</span>
-              )}
-              <ChevronRight className="w-3 h-3 text-neutral-300 group-hover:text-[#00775B] shrink-0 transition-colors" />
+              {j.note && <span className="shrink-0 text-[9px] text-neutral-500">{j.note}</span>}
+              <ChevronRight className="h-3 w-3 shrink-0 text-neutral-300 transition-colors group-hover:text-[#00775B]" />
             </div>
           );
         })}
@@ -767,7 +719,51 @@ function JourneyDefaultView({ onSelect }: { onSelect: (id: string) => void }) {
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+function JourneyMapModal({
+  open,
+  onClose,
+  selectedCameraId,
+}: {
+  open: boolean;
+  onClose: () => void;
+  selectedCameraId?: string;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px]">
+      <div className="w-full max-w-4xl rounded-[4px] border border-neutral-200 bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Waypoints className="h-4 w-4 text-[#00775B]" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">Journey Map</span>
+          </div>
+          <button onClick={onClose} className="rounded-[4px] p-1 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          <div className="overflow-hidden rounded-[4px] border border-neutral-200 bg-neutral-50">
+            <ZoneMap selectedCameraId={selectedCameraId} />
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {[
+              { color: "bg-red-500", label: "Critical" },
+              { color: "bg-amber-400", label: "Unknown" },
+              { color: "bg-emerald-600", label: "Normal" },
+              { color: "bg-neutral-400", label: "Offline" },
+            ].map((l) => (
+              <div key={l.label} className="flex items-center gap-1">
+                <span className={cn("h-2 w-2 rounded-full", l.color)} />
+                <span className="text-[9px] text-neutral-500">{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   terminology: IdentityTerminology;
@@ -782,9 +778,13 @@ export const IdentityMonitoringView = ({
   terminology: _terminology,
   timeRange: _timeRange,
   activeApp: _activeApp,
+  onEntityClick,
+  onCameraClick,
+  onJourneyClick,
 }: Props) => {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>("f1");
   const [feedFilter, setFeedFilter] = useState<FeedFilter>("all");
+  const [journeyMapOpen, setJourneyMapOpen] = useState(false);
 
   const selectedItem = FEED_ITEMS.find((f) => f.id === selectedId) ?? null;
   const sticky = FEED_ITEMS.filter((f) => f.isSticky);
@@ -792,181 +792,185 @@ export const IdentityMonitoringView = ({
 
   function filterItem(item: FeedItem): boolean {
     switch (feedFilter) {
-      case "threats":    return item.status === "BLACKLIST" || item.status === "UNREGISTERED";
-      case "unknowns":   return item.status === "UNKNOWN" || item.status === "UNREGISTERED";
-      case "vip":        return item.status === "VIP";
-      case "authorized": return item.status === "WHITELIST" || item.status === "AUTHORIZED";
-      default:           return true;
+      case "threats":
+        return item.status === "BLACKLIST" || item.status === "UNREGISTERED";
+      case "unknowns":
+        return item.status === "UNKNOWN" || item.status === "UNREGISTERED";
+      case "vip":
+        return item.status === "VIP";
+      case "authorized":
+        return item.status === "WHITELIST" || item.status === "AUTHORIZED";
+      default:
+        return true;
     }
   }
 
   const filteredSticky = sticky.filter(filterItem);
   const filteredLive = live.filter(filterItem);
 
+  const primaryEntity = useMemo(
+    () => FEED_ITEMS.find((f) => f.type === "FACE" && (f.status === "BLACKLIST" || f.status === "UNKNOWN")) ?? FEED_ITEMS.find((f) => f.type === "FACE")!,
+    []
+  );
+  const primaryVehicle = useMemo(
+    () => FEED_ITEMS.find((f) => f.type === "PLATE" && f.status === "UNREGISTERED") ?? FEED_ITEMS.find((f) => f.type === "PLATE")!,
+    []
+  );
+
   const FILTERS: { id: FeedFilter; label: string; count: number }[] = [
-    { id: "all",        label: "All",        count: FEED_ITEMS.length },
-    { id: "threats",    label: "Threats",    count: FEED_ITEMS.filter((f) => f.status === "BLACKLIST" || f.status === "UNREGISTERED").length },
-    { id: "unknowns",   label: "Unknowns",   count: FEED_ITEMS.filter((f) => f.status === "UNKNOWN" || f.status === "UNREGISTERED").length },
-    { id: "vip",        label: "VIP",        count: FEED_ITEMS.filter((f) => f.status === "VIP").length },
+    { id: "all", label: "All", count: FEED_ITEMS.length },
+    { id: "threats", label: "Threats", count: FEED_ITEMS.filter((f) => f.status === "BLACKLIST" || f.status === "UNREGISTERED").length },
+    { id: "unknowns", label: "Unknowns", count: FEED_ITEMS.filter((f) => f.status === "UNKNOWN" || f.status === "UNREGISTERED").length },
+    { id: "vip", label: "VIP", count: FEED_ITEMS.filter((f) => f.status === "VIP").length },
     { id: "authorized", label: "Authorized", count: FEED_ITEMS.filter((f) => f.status === "WHITELIST" || f.status === "AUTHORIZED").length },
   ];
 
   const mapLegend = [
-    { color: "bg-red-500",    label: "Critical" },
-    { color: "bg-amber-400",  label: "Unknown"  },
-    { color: "bg-emerald-600",label: "Normal"   },
-    { color: "bg-neutral-400",label: "Offline"  },
+    { color: "bg-red-500", label: "Critical" },
+    { color: "bg-amber-400", label: "Unknown" },
+    { color: "bg-emerald-600", label: "Normal" },
+    { color: "bg-neutral-400", label: "Offline" },
   ];
 
   return (
-    <div className="flex flex-col rounded-xl border border-neutral-200 overflow-hidden bg-white shadow-sm" style={{ minHeight: "75vh" }}>
-
-      {/* ── Status Bar ── */}
-      <div className="shrink-0 flex flex-wrap items-center gap-1 px-3 py-2 bg-[#021d18] text-xs border-b border-white/10">
-        <StatusPill count={2} label="Active Threats"    colorClass="bg-red-900/50 text-red-300"    pulse />
-        <span className="text-white/20 px-0.5">·</span>
+    <div className="flex flex-col overflow-hidden rounded-[4px] border border-neutral-200 bg-white shadow-sm" style={{ minHeight: "75vh" }}>
+      <JourneyMapModal
+        open={journeyMapOpen}
+        onClose={() => setJourneyMapOpen(false)}
+        selectedCameraId={selectedItem?.cameraId ?? primaryEntity.cameraId}
+      />
+      <div className="shrink-0 flex flex-wrap items-center gap-1 border-b border-white/10 bg-[#021d18] px-3 py-2 text-xs">
+        <StatusPill count={2} label="Active Threats" colorClass="bg-red-900/50 text-red-300" pulse />
+        <span className="px-0.5 text-white/20">·</span>
         <StatusPill count={5} label="Unknowns at Entry" colorClass="bg-amber-900/40 text-amber-300" />
-        <span className="text-white/20 px-0.5">·</span>
-        <StatusPill count={1} label="VIP on Site"       colorClass="bg-yellow-900/40 text-yellow-300" />
-        <span className="text-white/20 px-0.5">·</span>
+        <span className="px-0.5 text-white/20">·</span>
+        <StatusPill count={1} label="VIP on Site" colorClass="bg-yellow-900/40 text-yellow-300" />
+        <span className="px-0.5 text-white/20">·</span>
         <StatusPill count="11/12" label="Cameras Online" colorClass="bg-emerald-900/40 text-emerald-300" />
-        <span className="ml-auto text-[10px] text-white/40">
-          Last updated: 3s ago · Auto-refresh ON
-        </span>
+        <span className="ml-auto text-[10px] text-white/40">Last updated: 3s ago · Auto-refresh ON</span>
       </div>
 
-      {/* ── Three Columns ── */}
       <div className="flex flex-1 min-h-0 divide-x divide-neutral-200" style={{ minHeight: "calc(75vh - 40px)" }}>
-
-        {/* LEFT: Live Detection Feed */}
-        <div className="w-[30%] flex flex-col min-h-0 bg-neutral-50/40">
-          {/* Filter bar */}
-          <div className="shrink-0 flex items-center gap-0.5 px-2 py-2 border-b border-neutral-200 bg-white overflow-x-auto">
-            {FILTERS.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setFeedFilter(f.id)}
-                className={cn(
-                  "flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold whitespace-nowrap transition-colors",
-                  feedFilter === f.id
-                    ? "bg-[#021d18] text-white"
-                    : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
-                )}
-              >
-                {f.label}
-                <span
+        <div className="flex w-[34%] min-h-0 flex-col bg-neutral-50/40">
+          <div className="shrink-0 overflow-x-auto border-b border-neutral-200 bg-white px-2 py-2">
+            <div className="flex items-center gap-0.5">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setFeedFilter(f.id)}
                   className={cn(
-                    "text-[9px] px-1 py-0.5 rounded-full min-w-[16px] text-center",
-                    feedFilter === f.id
-                      ? "bg-white/20 text-white"
-                      : "bg-neutral-200 text-neutral-500"
+                    "flex items-center gap-1 rounded-[4px] px-2 py-1 text-[10px] font-semibold whitespace-nowrap transition-colors",
+                    feedFilter === f.id ? "bg-[#021d18] text-white" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
                   )}
                 >
-                  {f.count}
-                </span>
-              </button>
-            ))}
+                  {f.label}
+                  <span className={cn("min-w-[16px] rounded-full px-1 py-0.5 text-[9px] text-center", feedFilter === f.id ? "bg-white/20 text-white" : "bg-neutral-200 text-neutral-500")}>
+                    {f.count}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Scrollable feed */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-2">
-            {/* Sticky threats section */}
+          <div className="flex-1 space-y-2 overflow-y-auto p-2">
             {filteredSticky.length > 0 && (
               <>
                 <div className="flex items-center gap-2 px-1">
                   <div className="h-px flex-1 bg-red-200" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">
-                    Active Threats
-                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-red-400">Active Threats</span>
                   <div className="h-px flex-1 bg-red-200" />
                 </div>
                 {filteredSticky.map((item) => (
-                  <FeedCard
-                    key={item.id}
-                    item={item}
-                    selected={selectedId === item.id}
-                    onClick={() => setSelectedId(item.id === selectedId ? null : item.id)}
-                  />
+                  <FeedCard key={item.id} item={item} selected={selectedId === item.id} onClick={() => setSelectedId(item.id === selectedId ? null : item.id)} />
                 ))}
                 <div className="flex items-center gap-2 px-1">
                   <div className="h-px flex-1 bg-neutral-200" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">
-                    Live Feed
-                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-neutral-400">Live Feed</span>
                   <div className="h-px flex-1 bg-neutral-200" />
                 </div>
               </>
             )}
 
-            {/* Live feed */}
             {filteredLive.map((item) => (
-              <FeedCard
-                key={item.id}
-                item={item}
-                selected={selectedId === item.id}
-                onClick={() => setSelectedId(item.id === selectedId ? null : item.id)}
-              />
+              <FeedCard key={item.id} item={item} selected={selectedId === item.id} onClick={() => setSelectedId(item.id === selectedId ? null : item.id)} />
             ))}
 
-            {filteredSticky.length === 0 && filteredLive.length === 0 && (
-              <p className="text-xs text-neutral-400 text-center py-10">
-                No detections match this filter.
-              </p>
-            )}
+            {filteredSticky.length === 0 && filteredLive.length === 0 && <p className="py-10 text-center text-xs text-neutral-400">No detections match this filter.</p>}
           </div>
         </div>
 
-        {/* CENTER: Person / Vehicle Detail */}
-        <div className="w-[40%] flex flex-col min-h-0 bg-white">
-          {/* Panel header */}
-          <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-neutral-200">
-            <span className="text-xs font-bold text-neutral-700">
-              {selectedItem ? selectedItem.displayName : "Today's Summary"}
-            </span>
-            {selectedItem && (
-              <button
-                onClick={() => setSelectedId(null)}
-                className="ml-auto flex items-center gap-1 text-[10px] text-neutral-400 hover:text-neutral-600 transition-colors"
-              >
-                <X className="w-3 h-3" /> Clear
-              </button>
-            )}
+        <div className="flex w-[66%] min-h-0 flex-col bg-neutral-50/30">
+          <div className="shrink-0 border-b border-neutral-200 bg-white p-3">
+            <div className="grid gap-3 xl:grid-cols-2">
+              <DetailCard
+                title="Entity Detail"
+                item={primaryEntity}
+                accent="alert"
+                onOpen={() => onEntityClick?.(primaryEntity.status === "BLACKLIST" ? "blacklist" : "unknown")}
+              />
+              <DetailCard
+                title="Vehicle Detail"
+                item={primaryVehicle}
+                accent="watch"
+                onOpen={() => onEntityClick?.(primaryVehicle.status === "UNREGISTERED" ? "unknown" : "matched")}
+              />
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            {selectedItem ? (
-              <PersonDetail item={selectedItem} onClose={() => setSelectedId(null)} />
-            ) : (
-              <TodaySummary />
-            )}
-          </div>
-        </div>
 
-        {/* RIGHT: Zone Map + Journey View */}
-        <div className="w-[30%] flex flex-col min-h-0 overflow-y-auto">
-          {/* Zone Map */}
-          <div className="shrink-0 p-3 border-b border-neutral-200 bg-white">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">
-                Zone Map
-              </span>
-              <span className="text-[9px] text-neutral-400">11/12 online</span>
-            </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden">
-              <ZoneMap selectedCameraId={selectedItem?.cameraId} />
-            </div>
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              {mapLegend.map((l) => (
-                <div key={l.label} className="flex items-center gap-1">
-                  <span className={cn("w-2 h-2 rounded-full", l.color)} />
-                  <span className="text-[9px] text-neutral-500">{l.label}</span>
+          <div className="shrink-0 border-b border-neutral-200 bg-neutral-50 p-3">
+            <TodaySummary />
+          </div>
+
+          <div className="grid min-h-0 flex-1 gap-3 p-3 xl:grid-cols-[1.1fr,0.9fr]">
+            <div className="flex min-h-0 flex-col gap-3">
+              <div className="rounded-[4px] border border-neutral-200 bg-white p-3 shadow-sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Camera className="h-4 w-4 text-[#00775B]" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">Journey Map</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setJourneyMapOpen(true);
+                      onJourneyClick?.();
+                    }}
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-[#00775B] hover:text-[#00956D]"
+                  >
+                    <Maximize2 className="h-3 w-3" />
+                    Open Popup
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className="rounded-[4px] border border-dashed border-neutral-200 bg-neutral-50 px-4 py-6 text-center">
+                  <p className="text-[11px] font-semibold text-neutral-700">Journey map moved to popup</p>
+                  <p className="mt-1 text-[10px] text-neutral-500">
+                    Open the map overlay to inspect route progression and zone highlights.
+                  </p>
+                </div>
+              </div>
 
-          {/* Journey View */}
-          <div className="flex-1 p-3 bg-neutral-50/40">
-            <JourneyDefaultView onSelect={(id) => setSelectedId(id)} />
+              <div className="min-h-0 overflow-hidden rounded-[4px] border border-neutral-200 bg-white shadow-sm">
+                <div className="flex items-center gap-2 border-b border-neutral-200 px-4 py-2.5">
+                  <span className="text-xs font-bold text-neutral-700">{selectedItem ? selectedItem.displayName : "Selected Detail"}</span>
+                  {selectedItem && (
+                    <div className="ml-auto flex items-center gap-2">
+                      <button onClick={() => onCameraClick?.(selectedItem.cameraId)} className="text-[10px] font-semibold text-[#00775B] hover:text-[#00956D]">
+                        Open Feed
+                      </button>
+                      <button onClick={() => setSelectedId(null)} className="flex items-center gap-1 text-[10px] text-neutral-400 transition-colors hover:text-neutral-600">
+                        <X className="h-3 w-3" /> Clear
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="h-full overflow-y-auto">
+                  {selectedItem ? <PersonDetail item={selectedItem} onClose={() => setSelectedId(null)} /> : <PersonDetail item={primaryEntity} onClose={() => setSelectedId(null)} />}
+                </div>
+              </div>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto">
+              <JourneyDefaultView onSelect={(id) => setSelectedId(id)} />
+            </div>
           </div>
         </div>
       </div>
